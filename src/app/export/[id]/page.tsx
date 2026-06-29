@@ -15,6 +15,7 @@ export default function ExportPage({
   const { showToast } = useToast();
   const [character, setCharacter] = useState<Character | null>(null);
   const [poseSet, setPoseSet] = useState<PoseSet | null>(null);
+  const [allPoseSets, setAllPoseSets] = useState<PoseSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefix, setPrefix] = useState('');
   const [canvasSize, setCanvasSize] = useState(384);
@@ -51,6 +52,13 @@ export default function ExportPage({
         setCanvasSize(poseSetData.canvasWidth || 384);
       }
 
+      // Fetch all pose sets to merge poses from multiple generations
+      const allRes = await fetch(`/api/characters/${id}/pose-sets`);
+      if (allRes.ok && !cancelled) {
+        const all: PoseSet[] = await allRes.json();
+        setAllPoseSets(all);
+      }
+
       if (!cancelled) setLoading(false);
     };
 
@@ -60,10 +68,23 @@ export default function ExportPage({
     };
   }, [id]);
 
-  const generatedPoses = useMemo(
-    () => poseSet?.poses.filter(pose => pose.status === 'generated' || pose.status === 'approved' || pose.status === 'rejected') || [],
-    [poseSet]
-  );
+  const generatedPoses = useMemo(() => {
+    const isGenerated = (p: Pose) => p.status === 'generated' || p.status === 'approved' || p.status === 'rejected';
+    // Merge poses from all pose sets, latest pose set wins on name conflicts
+    const byName = new Map<string, Pose>();
+    for (const ps of allPoseSets) {
+      for (const pose of ps.poses) {
+        if (isGenerated(pose) && !byName.has(pose.name)) {
+          byName.set(pose.name, pose);
+        }
+      }
+    }
+    // Fallback to single pose set if allPoseSets is empty
+    if (byName.size === 0 && poseSet) {
+      return poseSet.poses.filter(isGenerated);
+    }
+    return Array.from(byName.values());
+  }, [poseSet, allPoseSets]);
 
   const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
     if (!poseSet) return;

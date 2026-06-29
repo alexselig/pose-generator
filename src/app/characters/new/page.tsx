@@ -943,7 +943,7 @@ function WizField({ label, value, onChange, multiline }: { label: string; value:
       {overflows && collapsed && (
         <button
           onClick={() => setCollapsed(false)}
-          style={{ position: 'absolute', left: '6px', bottom: '6px', background: 'rgba(22,21,52,.85)', border: '1px solid #312d57', borderRadius: '6px', color: '#7b5cff', fontSize: '12px', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+          style={{ position: 'absolute', right: '6px', bottom: '6px', background: 'rgba(22,21,52,.85)', border: '1px solid #312d57', borderRadius: '6px', color: '#7b5cff', fontSize: '12px', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
           title="Expand"
         >⤡</button>
       )}

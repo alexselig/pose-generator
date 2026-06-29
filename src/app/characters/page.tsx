@@ -6,13 +6,29 @@ import { Character } from '@/lib/types';
 
 export default function CharacterGalleryPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [poseCounts, setPoseCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     fetch('/api/characters')
       .then(res => res.json())
-      .then(data => { setCharacters(data); setLoading(false); })
+      .then(async (data: Character[]) => {
+        setCharacters(data);
+        setLoading(false);
+        // Fetch pose counts for each character
+        const counts: Record<string, number> = {};
+        await Promise.all(data.map(async (char: Character) => {
+          try {
+            const res = await fetch(`/api/characters/${char.id}/images`);
+            if (res.ok) {
+              const body = await res.json();
+              counts[char.id] = (body.images || []).filter((img: { isArchive: boolean }) => !img.isArchive).length;
+            }
+          } catch { /* ignore */ }
+        }));
+        setPoseCounts(counts);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -47,13 +63,13 @@ export default function CharacterGalleryPage() {
                 opacity: char.archived ? 0.6 : 1,
               }}
             >
-              {/* Character image */}
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '26px' }}>
+              {/* Character image — full bleed */}
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {char.referenceImages?.[0] ? (
                   <img
                     src={`data:image/png;base64,${char.referenceImages[0]}`}
                     alt={char.name}
-                    style={{ maxHeight: '180px', objectFit: 'contain' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
                   />
                 ) : (
                   <div style={{ fontSize: '80px', opacity: 0.4 }}>🎭</div>
@@ -70,15 +86,6 @@ export default function CharacterGalleryPage() {
                 </div>
               )}
 
-              {/* Palette dots */}
-              {char.colorPalette?.length > 0 && (
-                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '5px' }}>
-                  {char.colorPalette.slice(0, 3).map((c, j) => (
-                    <span key={j} style={{ width: '13px', height: '13px', borderRadius: '50%', background: c, border: '1.5px solid rgba(255,255,255,.55)', boxShadow: '0 1px 4px rgba(0,0,0,.4)' }} />
-                  ))}
-                </div>
-              )}
-
               {/* Bottom info */}
               <div style={{ position: 'absolute', left: '14px', right: '14px', bottom: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
                 <div style={{ minWidth: 0 }}>
@@ -90,7 +97,7 @@ export default function CharacterGalleryPage() {
                   </div>
                 </div>
                 <span style={{ flexShrink: 0, font: "600 10.5px var(--font-display)", color: '#fff', background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', padding: '4px 9px', borderRadius: '20px', backdropFilter: 'blur(4px)' }}>
-                  0 poses
+                  {poseCounts[char.id] || 0} {(poseCounts[char.id] || 0) === 1 ? 'pose' : 'poses'}
                 </span>
               </div>
             </Link>
