@@ -61,17 +61,15 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, regenerati
       )}
 
       <div onClick={e => e.stopPropagation()} style={{ maxWidth: '80vw', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+        {images.length > 1 && (
+          <span style={{ font: '400 12px var(--font-mono)', color: '#9a96c4' }}>{index + 1} / {images.length}</span>
+        )}
         <img
           src={img.src}
           alt={img.alt}
           style={{ maxWidth: '80vw', maxHeight: onRegenerate ? '58vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ font: '600 14px var(--font-display)', color: '#e6e3f5' }}>{img.alt}</span>
-          {images.length > 1 && (
-            <span style={{ font: '400 12px var(--font-mono)', color: '#9a96c4' }}>{index + 1} / {images.length}</span>
-          )}
-        </div>
+        <span style={{ font: '600 14px var(--font-display)', color: '#e6e3f5' }}>{img.alt}</span>
 
         {onRegenerate && (
           <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
