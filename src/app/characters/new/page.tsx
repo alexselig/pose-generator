@@ -260,6 +260,34 @@ export default function NewCharacterWizard() {
     }
   };
 
+  const [lbRegenerating, setLbRegenerating] = useState(false);
+  const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
+    const poseSetId = sessionStorage.getItem('pf_new_poseset_id');
+    // Map lightbox index (only poses with images) back to poses array
+    const withImages = poses.map((p, i) => ({ p, i })).filter(x => poseImages[x.p.name]);
+    const entry = withImages[imageIndex];
+    if (!entry || !poseSetId) return;
+    const pose = entry.p;
+    setLbRegenerating(true);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poseSetId, poseId: pose.id, prompt: prompt || undefined }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setPoses(prev => prev.map((p, i) => i === entry.i ? { ...p, status: 'generated' } : p));
+        if (result.imageData) {
+          setPoseImages(prev => ({ ...prev, [pose.name]: result.imageData }));
+          lightbox.updateImage(imageIndex, `data:image/png;base64,${result.imageData}`);
+        }
+      }
+    } finally {
+      setLbRegenerating(false);
+    }
+  };
+
   const handleDone = async () => {
     const charId = sessionStorage.getItem('pf_new_char_id');
     const poseSetId = sessionStorage.getItem('pf_new_poseset_id');
@@ -871,7 +899,7 @@ export default function NewCharacterWizard() {
           </div>
         </div>
       )}
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={handleLightboxRegenerate} regenerating={lbRegenerating} />}
     </div>
   );
 }

@@ -180,6 +180,33 @@ export default function GeneratePage({
     }
   };
 
+  const [lbRegenerating, setLbRegenerating] = useState(false);
+  const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
+    // Map lightbox index (only images with poseImages) back to reviewPoses index
+    const withImages = reviewPoses.map((p, i) => ({ p, i })).filter(x => poseImages[x.p.name]);
+    const entry = withImages[imageIndex];
+    if (!entry || !poseSetId) return;
+    const pose = entry.p;
+    setLbRegenerating(true);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poseSetId, poseId: pose.id, prompt: prompt || undefined }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setReviewPoses(prev => prev.map((p, i) => i === entry.i ? { ...p, status: 'generated' } : p));
+        if (result.imageData) {
+          setPoseImages(prev => ({ ...prev, [pose.name]: result.imageData }));
+          lightbox.updateImage(imageIndex, `data:image/png;base64,${result.imageData}`);
+        }
+      }
+    } finally {
+      setLbRegenerating(false);
+    }
+  };
+
   const handleDone = async () => {
     if (poseSetId) {
       await fetch(`/api/pose-sets/${poseSetId}/finalize`, { method: 'POST' }).catch(() => {});
@@ -289,7 +316,7 @@ export default function GeneratePage({
             Done
           </button>
         </div>
-        {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} />}
+        {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={handleLightboxRegenerate} regenerating={lbRegenerating} />}
       </div>
     );
   }

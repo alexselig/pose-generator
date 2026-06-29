@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Character } from '@/lib/types';
+import { Character, PoseSet } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 import { Lightbox, useLightbox } from '@/components/Lightbox';
 
@@ -17,9 +17,18 @@ export default function CharacterDetailPage({
   const { showToast } = useToast();
   const [character, setCharacter] = useState<Character | null>(null);
   const [images, setImages] = useState<{ name: string; url: string; isArchive: boolean }[]>([]);
+  const [poseSet, setPoseSet] = useState<PoseSet | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Character>>({});
+  const [regenerating, setRegenerating] = useState(false);
   const lightbox = useLightbox();
+
+  const reloadImages = () => {
+    fetch(`/api/characters/${id}/images`)
+      .then(res => res.ok ? res.json() : { images: [] })
+      .then(data => setImages(data.images || []))
+      .catch(() => setImages([]));
+  };
 
   useEffect(() => {
     fetch(`/api/characters/${id}`)
@@ -27,10 +36,12 @@ export default function CharacterDetailPage({
       .then(data => { setCharacter(data); setForm(data); })
       .catch(() => router.push('/characters'));
 
-    fetch(`/api/characters/${id}/images`)
-      .then(res => res.ok ? res.json() : { images: [] })
-      .then(data => setImages(data.images || []))
-      .catch(() => setImages([]));
+    reloadImages();
+
+    fetch(`/api/characters/${id}/pose-sets/latest`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setPoseSet(data))
+      .catch(() => setPoseSet(null));
   }, [id, router]);
 
   const currentPoses = useMemo(() => {
@@ -39,6 +50,38 @@ export default function CharacterDetailPage({
       return { ...img, displayName };
     });
   }, [images]);
+
+  const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
+    if (!poseSet) return;
+    // Match the image filename to a pose in the pose set
+    const image = currentPoses[imageIndex];
+    if (!image) return;
+    const poseName = image.name.replace(/\.png$/, '').replace(/^.*_/, '');
+    const pose = poseSet.poses.find(p => p.name === poseName);
+    if (!pose) return;
+
+    setRegenerating(true);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poseSetId: poseSet.id, poseId: pose.id, prompt: prompt || undefined }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.imageData) {
+          lightbox.updateImage(imageIndex, `data:image/png;base64,${result.imageData}`);
+        }
+        // Refresh images from disk
+        reloadImages();
+        showToast('Pose regenerated');
+      }
+    } catch {
+      showToast('Failed to regenerate');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const handleSave = async () => {
     const res = await fetch(`/api/characters/${id}`, {
@@ -194,7 +237,7 @@ export default function CharacterDetailPage({
           </div>
         )}
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} regenerating={regenerating} />}
     </div>
   );
 }

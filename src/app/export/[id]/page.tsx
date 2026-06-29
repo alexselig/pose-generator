@@ -21,6 +21,7 @@ export default function ExportPage({
   const [anchor, setAnchor] = useState<'bottom_center' | 'center' | 'top_center'>('bottom_center');
   const [includeSheet, setIncludeSheet] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const lightbox = useLightbox();
 
   useEffect(() => {
@@ -63,6 +64,34 @@ export default function ExportPage({
     () => poseSet?.poses.filter(pose => pose.status === 'generated' || pose.status === 'approved' || pose.status === 'rejected') || [],
     [poseSet]
   );
+
+  const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
+    if (!poseSet) return;
+    const pose = generatedPoses[imageIndex];
+    if (!pose) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poseSetId: poseSet.id, poseId: pose.id, prompt: prompt || undefined }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.imageData) {
+          lightbox.updateImage(imageIndex, `data:image/png;base64,${result.imageData}`);
+        }
+        // Reload pose set to reflect updates
+        const psRes = await fetch(`/api/characters/${id}/pose-sets/latest`);
+        if (psRes.ok) setPoseSet(await psRes.json());
+        showToast('Pose regenerated');
+      }
+    } catch {
+      showToast('Failed to regenerate');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const manifest: GodotManifest | null = useMemo(() => {
     if (!character) return null;
@@ -250,7 +279,7 @@ export default function ExportPage({
           </div>
         </section>
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={handleLightboxRegenerate} regenerating={regenerating} />}
     </div>
   );
 }
