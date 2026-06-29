@@ -906,16 +906,27 @@ export default function NewCharacterWizard() {
 
 function WizField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [collapsed, setCollapsed] = useState(true);
+  const [overflows, setOverflows] = useState(false);
+  const collapsedHeight = 80;
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     requestAnimationFrame(() => {
       el.style.height = 'auto';
-      el.style.height = `${Math.max(el.scrollHeight, 40)}px`;
+      const full = el.scrollHeight;
+      if (collapsed) {
+        setOverflows(full > collapsedHeight);
+        el.style.height = `${Math.min(full, collapsedHeight)}px`;
+      } else {
+        el.style.height = `${Math.max(full, collapsedHeight)}px`;
+      }
     });
-  }, [value]);
+  }, [value, collapsed]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <label style={{ font: "600 11px var(--font-display)", letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>{label}</label>
       <textarea
         ref={ref}
@@ -926,9 +937,16 @@ function WizField({ label, value, onChange, multiline }: { label: string; value:
           width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-input)',
           borderRadius: 'var(--radius-input)', color: 'var(--text-primary)', padding: '11px 13px',
           font: '13px/1.5 var(--font-body)', outline: 'none', resize: 'none', overflow: 'hidden',
-          flex: 1, minHeight: '80px',
+          flex: 1, minHeight: `${collapsedHeight}px`,
         }}
       />
+      {overflows && collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{ position: 'absolute', left: '6px', bottom: '6px', background: 'rgba(22,21,52,.85)', border: '1px solid #312d57', borderRadius: '6px', color: '#7b5cff', fontSize: '12px', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+          title="Expand"
+        >⤡</button>
+      )}
     </div>
   );
 }
