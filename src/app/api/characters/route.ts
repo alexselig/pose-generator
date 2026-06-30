@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       personalityNotes: body.personalityNotes || '',
       referenceImages: body.referenceImages || [],
       approvedReferencePose: body.approvedReferencePose,
+      group: (body.group || '').trim(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       archived: false,

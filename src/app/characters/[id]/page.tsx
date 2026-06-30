@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Character, PoseSet } from '@/lib/types';
+import { listGroups } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
 import { Lightbox, useLightbox } from '@/components/Lightbox';
 
@@ -16,6 +17,7 @@ export default function CharacterDetailPage({
   const router = useRouter();
   const { showToast } = useToast();
   const [character, setCharacter] = useState<Character | null>(null);
+  const [allCharacters, setAllCharacters] = useState<Character[]>([]);
   const [images, setImages] = useState<{ name: string; url: string; isArchive: boolean }[]>([]);
   const [poseSet, setPoseSet] = useState<PoseSet | null>(null);
   const [editing, setEditing] = useState(false);
@@ -42,7 +44,14 @@ export default function CharacterDetailPage({
       .then(res => res.ok ? res.json() : null)
       .then(data => setPoseSet(data))
       .catch(() => setPoseSet(null));
+
+    fetch('/api/characters')
+      .then(res => res.ok ? res.json() : [])
+      .then((data: Character[]) => setAllCharacters(data))
+      .catch(() => setAllCharacters([]));
   }, [id, router]);
+
+  const groups = useMemo(() => listGroups(allCharacters), [allCharacters]);
 
   const currentPoses = useMemo(() => {
     return images.filter(img => !img.isArchive).map(img => {
@@ -110,6 +119,27 @@ export default function CharacterDetailPage({
     }
   };
 
+  const handleGroupChange = async (group: string) => {
+    const res = await fetch(`/api/characters/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group }),
+    });
+    if (res.ok) {
+      const updated: Character = await res.json();
+      setCharacter(updated);
+      setForm(prev => ({ ...prev, group: updated.group }));
+      setAllCharacters(prev =>
+        prev.some(c => c.id === updated.id)
+          ? prev.map(c => (c.id === updated.id ? updated : c))
+          : [...prev, updated]
+      );
+      showToast(group ? `Added to “${group}”` : 'Removed from group');
+    } else {
+      showToast('Failed to update group');
+    }
+  };
+
   const handleArchive = async () => {
     if (!confirm('Archive this character?')) return;
     const res = await fetch(`/api/characters/${id}`, {
@@ -164,6 +194,8 @@ export default function CharacterDetailPage({
           <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 11px var(--font-mono)', color: '#9a96c4', marginTop: '6px' }}>
             <span>base</span><span style={{ color: '#3ddc97' }}>feet-aligned ✓</span>
           </div>
+          <div style={{ height: '1px', background: '#28244a', margin: '16px 0' }} />
+          <GroupSelector value={character.group || ''} groups={groups} onSelect={handleGroupChange} />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -285,6 +317,64 @@ function EditField({ label, value, onChange, multiline }: { label: string; value
   );
 }
 
+const NEW_GROUP_VALUE = '__new_group__';
+
+function GroupSelector({ value, groups, onSelect }: { value: string; groups: string[]; onSelect: (group: string) => void }) {
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  // Always include the current group so it stays selectable even before the
+  // full character list (which the group list is derived from) has loaded.
+  const options = Array.from(new Set([value, ...groups].filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+  const handleSelect = (next: string) => {
+    if (next === NEW_GROUP_VALUE) {
+      setNewName('');
+      setCreating(true);
+      return;
+    }
+    onSelect(next);
+  };
+
+  const commit = () => {
+    const name = newName.trim();
+    setCreating(false);
+    setNewName('');
+    if (name && name !== value) onSelect(name);
+  };
+
+  const cancel = () => {
+    setCreating(false);
+    setNewName('');
+  };
+
+  return (
+    <div>
+      <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.07em', color: '#7d79ad', marginBottom: '7px' }}>GROUP</div>
+      {creating ? (
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <input
+            autoFocus
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); }}
+            placeholder="New group name"
+            style={{ ...fieldStyle, padding: '8px 10px' }}
+          />
+          <button onClick={commit} style={{ ...secondaryButton, padding: '8px 11px', flexShrink: 0 }} title="Create group">Add</button>
+          <button onClick={cancel} style={{ ...secondaryButton, padding: '8px 11px', flexShrink: 0 }} title="Cancel">✕</button>
+        </div>
+      ) : (
+        <select value={value} onChange={e => handleSelect(e.target.value)} style={selectStyle}>
+          <option value="">No group</option>
+          {options.map(g => <option key={g} value={g}>{g}</option>)}
+          <option value={NEW_GROUP_VALUE}>＋ New group…</option>
+        </select>
+      )}
+    </div>
+  );
+}
+
 const secondaryButton: React.CSSProperties = {
   background: 'var(--bg-raised)',
   color: 'var(--text-bright)',
@@ -327,4 +417,19 @@ const fieldStyle: React.CSSProperties = {
   font: '13px/1.5 var(--font-body)',
   outline: 'none',
   resize: 'none',
+};
+
+const selectStyle: React.CSSProperties = {
+  width: '100%',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  background: "var(--bg-input) url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a96c4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>\") no-repeat right 11px center",
+  border: '1px solid var(--border-input)',
+  borderRadius: 'var(--radius-input)',
+  color: 'var(--text-primary)',
+  padding: '9px 30px 9px 11px',
+  font: '13px var(--font-body)',
+  outline: 'none',
+  cursor: 'pointer',
 };

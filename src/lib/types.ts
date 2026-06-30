@@ -10,6 +10,7 @@ export interface Character {
   personalityNotes: string;
   referenceImages: string[]; // base64 or file paths
   approvedReferencePose?: string;
+  group?: string; // optional group/collection name; empty means ungrouped
   createdAt: string;
   updatedAt: string;
   archived: boolean;
