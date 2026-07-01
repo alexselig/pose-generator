@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCharacter, getLatestPoseSet, getPoseSet } from '@/lib/storage';
+import { getCharacter, getMergedPoseSet, getPoseSet } from '@/lib/storage';
 import { exportGodotPackage, generateManifest } from '@/lib/export';
 
 function getExportOptions(searchParams: URLSearchParams) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Character not found' }, { status: 404 });
     }
 
-    const poseSet = getLatestPoseSet(characterId);
+    const poseSet = getMergedPoseSet(characterId);
     if (!poseSet) {
       return NextResponse.json({ error: 'Pose set not found' }, { status: 404 });
     }

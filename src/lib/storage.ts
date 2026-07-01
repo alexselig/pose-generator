@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Character, PoseSet } from './types';
+import { Character, Pose, PoseSet } from './types';
 
 const DATA_DIR = process.env.DATA_DIR || './data';
 const CHARACTERS_DIR = path.join(DATA_DIR, 'characters');
@@ -132,6 +132,31 @@ export function getPoseSet(id: string): PoseSet | null {
 export function getLatestPoseSet(characterId: string): PoseSet | null {
   const sets = getPoseSets(characterId);
   return sets[0] || null;
+}
+
+// Build a synthetic pose set that merges the generated poses from ALL of a
+// character's pose sets. Newest set wins on pose-name conflicts, matching the
+// gallery and export UI (which merge across sets). Without this, exports and
+// manifests only reflected the most recent pose set and silently dropped every
+// pose generated in earlier sets.
+export function getMergedPoseSet(characterId: string): PoseSet | null {
+  const sets = getPoseSets(characterId); // newest first (updatedAt desc)
+  if (sets.length === 0) return null;
+
+  const byName = new Map<string, Pose>();
+  for (const set of sets) {
+    for (const pose of set.poses) {
+      if ((pose.status === 'generated' || pose.status === 'approved') && !byName.has(pose.name)) {
+        byName.set(pose.name, pose);
+      }
+    }
+  }
+
+  const latest = sets[0];
+  // Fall back to the latest set's poses if none are marked generated/approved
+  // (e.g. a set still mid-generation) so export never returns an empty pack.
+  const poses = byName.size > 0 ? Array.from(byName.values()) : latest.poses;
+  return { ...latest, poses };
 }
 
 export function savePoseSet(poseSet: PoseSet): PoseSet {
