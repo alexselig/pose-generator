@@ -216,7 +216,6 @@ export default function CharacterDetailPage({
         ) : (
           <>
             <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 40px' }}>
-              <AttrRow label="Description" value={character.description} />
               <AttrRow label="Art style" value={character.artStyle} />
               <AttrRow label="Costume / outfit" value={character.costumeDetails} />
               <AttrRow label="Accessories" value={character.accessories} />
