@@ -252,7 +252,7 @@ export default function ExportPage({
           </label>
         </section>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minWidth: 0 }}>
           <section style={panelStyle}>
             <div style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4', marginBottom: '12px' }}>ASSET PACK · {files.length} FILES</div>
             <div style={{ font: '400 12.5px/1.9 var(--font-mono)', color: '#cdc9ee' }}>
@@ -284,7 +284,7 @@ export default function ExportPage({
           )}
         </div>
 
-        <section style={{ ...panelStyle, display: 'flex', flexDirection: 'column' }}>
+        <section style={{ ...panelStyle, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4' }}>{prefix}_manifest.json</span>
             <span style={{ font: '400 10px var(--font-mono)', color: '#3ddc97' }}>Godot ✓</span>
