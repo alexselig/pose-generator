@@ -85,3 +85,34 @@ input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
 }
 
 .auto-grow { overflow: hidden; resize: none; }
+
+/* Responsive sidebar drawer (mobile / small tablet) */
+.pf-backdrop { display: none; }
+.pf-hamburger { display: none; }
+
+@media (max-width: 767px) {
+  .pf-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: 0 0 60px -8px rgba(0, 0, 0, .75);
+  }
+  .pf-sidebar.pf-sidebar--open { transform: translateX(0); }
+  .pf-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(8, 7, 22, .6);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .28s ease;
+  }
+  .pf-backdrop.pf-backdrop--open { opacity: 1; pointer-events: auto; }
+  .pf-hamburger { display: inline-flex; }
+}

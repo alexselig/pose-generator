@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Character } from '@/lib/types';
+import { useSidebar } from '@/components/SidebarNav';
 
 export function AppHeader() {
   const pathname = usePathname();
   const [character, setCharacter] = useState<Character | null>(null);
+  const { toggleSidebar } = useSidebar();
 
   const isGallery = pathname === '/' || pathname === '/characters';
   const isCreate = pathname === '/characters/new';
@@ -45,6 +47,29 @@ export function AppHeader() {
       }}
     >
       <div className="flex items-center gap-[11px] min-w-0">
+        <button
+          onClick={toggleSidebar}
+          className="pf-hamburger"
+          aria-label="Toggle navigation"
+          style={{
+            width: '34px',
+            height: '34px',
+            flexShrink: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '4px',
+            background: 'rgba(255,255,255,.16)',
+            border: '1px solid rgba(255,255,255,.28)',
+            borderRadius: '9px',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <span style={{ width: '15px', height: '2px', background: '#fff', borderRadius: '2px' }} />
+          <span style={{ width: '15px', height: '2px', background: '#fff', borderRadius: '2px' }} />
+          <span style={{ width: '15px', height: '2px', background: '#fff', borderRadius: '2px' }} />
+        </button>
         {isGallery ? (
           <span className="grid flex-none" style={{ gridTemplateColumns: 'repeat(3,3.5px)', gridTemplateRows: 'repeat(3,3.5px)', gap: '2px', color: '#fff', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.35))' }}>
             {Array(9).fill(0).map((_, i) => (

@@ -5,10 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Character } from '@/lib/types';
 import { groupCharacters } from '@/lib/groups';
+import { useSidebar } from '@/components/SidebarNav';
 
 export function Sidebar() {
   const pathname = usePathname();
   const [characters, setCharacters] = useState<Character[]>([]);
+  const { open, closeSidebar } = useSidebar();
 
   useEffect(() => {
     fetch('/api/characters')
@@ -16,6 +18,11 @@ export function Sidebar() {
       .then(setCharacters)
       .catch(() => {});
   }, [pathname]); // Refetch on navigation
+
+  // Close the mobile drawer whenever the route changes (e.g. tapping a link).
+  useEffect(() => {
+    closeSidebar();
+  }, [pathname, closeSidebar]);
 
   const isGallery = pathname === '/' || pathname === '/characters';
   const activeCharId = pathname.match(/\/(characters|generate|export)\/([^/]+)/)?.[2];
@@ -71,15 +78,21 @@ export function Sidebar() {
   };
 
   return (
-    <aside
-      className="w-[228px] flex-none flex flex-col overflow-visible"
-      style={{
-        background: 'var(--bg-sidebar)',
-        borderRight: `2px solid ${darkenHex(activeCharId ? (characters.find(c => c.id === activeCharId)?.colorPalette?.[0] || '#7b5cff') : '#8e8ea6', 86)}`,
-        padding: '16px 12px',
-        gap: '4px',
-      }}
-    >
+    <>
+      <div
+        className={`pf-backdrop${open ? ' pf-backdrop--open' : ''}`}
+        onClick={closeSidebar}
+        aria-hidden
+      />
+      <aside
+        className={`pf-sidebar${open ? ' pf-sidebar--open' : ''} w-[228px] flex-none flex flex-col overflow-visible`}
+        style={{
+          background: 'var(--bg-sidebar)',
+          borderRight: `2px solid ${darkenHex(activeCharId ? (characters.find(c => c.id === activeCharId)?.colorPalette?.[0] || '#7b5cff') : '#8e8ea6', 86)}`,
+          padding: '16px 12px',
+          gap: '4px',
+        }}
+      >
       {/* Brand bar */}
       <Link
         href="/"
@@ -167,6 +180,7 @@ export function Sidebar() {
         Static illustrated poses · transparent PNG · Godot-ready exports
       </div>
     </aside>
+    </>
   );
 }
 

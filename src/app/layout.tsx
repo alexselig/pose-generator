@@ -3,6 +3,7 @@ import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { ToastProvider } from "@/components/Toast";
+import { SidebarProvider } from "@/components/SidebarNav";
 
 export const metadata: Metadata = {
   title: "PoseForge - Illustrated Character Poses for Godot",
@@ -23,15 +24,17 @@ export default function RootLayout({
       </head>
       <body className="h-full overflow-hidden">
         <ToastProvider>
-          <div className="flex h-full">
-            <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 min-h-0">
-              <AppHeader />
-              <main className="flex-1 overflow-auto">
-                {children}
-              </main>
+          <SidebarProvider>
+            <div className="flex h-full">
+              <Sidebar />
+              <div className="flex flex-col flex-1 min-w-0 min-h-0">
+                <AppHeader />
+                <main className="flex-1 overflow-auto">
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
+          </SidebarProvider>
         </ToastProvider>
       </body>
     </html>
