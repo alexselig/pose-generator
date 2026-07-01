@@ -44,17 +44,29 @@ export async function exportGodotPackage(
   const zip = new JSZip();
   const charSlug = options.prefix || slugify(character.name);
   const folder = zip.folder(`characters/${charSlug}`)!;
+  const canvasSize = options.canvasSize || poseSet.canvasWidth || 512;
+  const sharp = (await import('sharp')).default;
 
   const approvedPoses = poseSet.poses.filter(
     p => p.status === 'approved' || p.status === 'generated'
   );
 
-  // Add individual pose PNGs
+  // Add individual pose PNGs, resized to the selected canvas so the exported
+  // assets actually match the CANVAS SIZE control and the manifest (generated
+  // images can be 1024px; shipping them verbatim broke consistent sizing).
   for (const pose of approvedPoses) {
     const imageData = pose.imageData || getPoseImage(character.id, pose.name);
     if (imageData) {
       const fileName = `${charSlug}_${pose.name}.png`;
-      folder.file(fileName, imageData, { base64: true });
+      try {
+        const resized = await sharp(Buffer.from(imageData, 'base64'))
+          .resize(canvasSize, canvasSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer();
+        folder.file(fileName, resized);
+      } catch {
+        folder.file(fileName, imageData, { base64: true });
+      }
     }
   }
 
