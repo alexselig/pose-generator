@@ -51,7 +51,7 @@ export function AppHeader() {
         ) : isCharView ? (
           <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: character?.colorPalette?.[0] || '#fff', border: '2px solid rgba(255,255,255,.6)', boxShadow: '0 1px 3px rgba(0,0,0,.35)', flexShrink: 0 }} />
         ) : null}
-      <span style={{ font: '700 28px var(--font-display)', color: '#fff', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '560px' }}>
+      <span style={{ font: '700 18px var(--font-display)', color: '#fff', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '560px' }}>
         {title}
       </span>
       </div>

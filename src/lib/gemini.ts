@@ -9,6 +9,16 @@ function getClient() {
   return new GoogleGenerativeAI(apiKey);
 }
 
+// Detect image MIME type from the leading bytes of a base64 string so that
+// non-PNG references (JPEG/WebP/GIF) are sent to Gemini with the correct type.
+// Upload handlers strip the data-URL prefix, so the type must be inferred here.
+export function detectImageMimeType(base64: string): string {
+  if (base64.startsWith('/9j/')) return 'image/jpeg';
+  if (base64.startsWith('R0lGOD')) return 'image/gif';
+  if (base64.startsWith('UklGR')) return 'image/webp';
+  return 'image/png';
+}
+
 function buildCharacterPrompt(character: Character): string {
   const parts = [
     `Character: ${character.name}`,
@@ -31,8 +41,16 @@ export async function generatePoseImage(
 ): Promise<string> {
   const client = getClient();
 
-  const prompt = `Generate a single illustrated 2D character pose for a video game.
+  const referenceSection = referenceImageBase64
+    ? `\nIDENTITY LOCK (CRITICAL — a reference image of this exact character is attached above):
+- Reproduce the SAME character shown in the reference image: identical face, hairstyle, skin tone, outfit, color palette, accessories, and body proportions.
+- Do NOT redesign, restyle, age, or reinterpret the character — only the POSE may change.
+- The reference image is authoritative: if any detail below conflicts with it, follow the image.
+`
+    : '';
 
+  const prompt = `Generate a single illustrated 2D character pose for a video game.
+${referenceSection}
 ${buildCharacterPrompt(character)}
 
 Pose: ${pose.displayName}
@@ -69,21 +87,24 @@ Generate ONLY the character in this pose with a transparent/empty background. No
     },
   });
 
-  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-    { text: prompt },
-  ];
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
+  // Present the reference image FIRST so it strongly anchors the character's
+  // identity, then follow with the detailed pose prompt. Part ordering matters
+  // for image models — a buried reference gets under-weighted.
   if (referenceImageBase64) {
     parts.push({
+      text: 'Reference image of the character (canonical appearance). Keep the character identical to this image and change only the pose:',
+    });
+    parts.push({
       inlineData: {
-        mimeType: 'image/png',
+        mimeType: detectImageMimeType(referenceImageBase64),
         data: referenceImageBase64,
       },
     });
-    parts.push({
-      text: 'Use the above reference image to maintain character consistency. Generate the new pose matching this character exactly.',
-    });
   }
+
+  parts.push({ text: prompt });
 
   const result = await model.generateContent(parts);
   const response = result.response;

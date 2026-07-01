@@ -83,7 +83,7 @@ export function Sidebar() {
       {/* Brand bar */}
       <Link
         href="/"
-        className="flex items-center gap-[10px] no-underline"
+        className="flex items-center gap-[10px] no-underline flex-none"
         style={{
           height: '64px',
           margin: '-16px -12px 30px',

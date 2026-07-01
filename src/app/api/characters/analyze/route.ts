@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { detectImageMimeType } from '@/lib/gemini';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +39,7 @@ Be specific about colors — extract actual hex values from the image. Be descri
       { text: prompt },
       {
         inlineData: {
-          mimeType: 'image/png',
+          mimeType: detectImageMimeType(imageBase64),
           data: imageBase64,
         },
       },
