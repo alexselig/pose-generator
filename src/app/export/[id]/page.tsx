@@ -46,10 +46,12 @@ export default function ExportPage({
       setPrefix(slugify(characterData.name));
 
       if (poseSetRes.ok) {
-        const poseSetData: PoseSet = await poseSetRes.json();
+        const poseSetData: PoseSet | null = await poseSetRes.json();
         if (cancelled) return;
-        setPoseSet(poseSetData);
-        setCanvasSize(poseSetData.canvasWidth || 384);
+        if (poseSetData) {
+          setPoseSet(poseSetData);
+          setCanvasSize(poseSetData.canvasWidth || 384);
+        }
       }
 
       // Fetch all pose sets to merge poses from multiple generations
