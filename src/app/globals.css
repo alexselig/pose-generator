@@ -115,4 +115,10 @@ input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
   }
   .pf-backdrop.pf-backdrop--open { opacity: 1; pointer-events: auto; }
   .pf-hamburger { display: inline-flex; }
+
+  /* Responsive layout helpers for pages built with inline styles */
+  .pf-row-wrap { flex-wrap: wrap; }
+  .pf-stack { flex-direction: column !important; }
+  .pf-stack > * { width: 100% !important; }
+  .pf-grid-1 { grid-template-columns: 1fr !important; }
 }

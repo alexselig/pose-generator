@@ -166,7 +166,7 @@ export default function CharacterDetailPage({
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', padding: '30px 34px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '18px', marginBottom: '24px' }}>
+      <div className="pf-row-wrap" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '18px', marginBottom: '24px' }}>
         <div style={{ alignSelf: 'center' }}>
           <p style={{ margin: 0, color: '#9a96c4', fontSize: '13.5px' }}>{character.description || 'No description yet.'}</p>
         </div>
@@ -179,7 +179,7 @@ export default function CharacterDetailPage({
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '34px', alignItems: 'flex-start', marginBottom: '38px' }}>
+      <div className="pf-stack" style={{ display: 'flex', gap: '34px', alignItems: 'flex-start', marginBottom: '38px' }}>
         <div style={{ flexShrink: 0, width: '212px' }}>
           <div style={{ borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', background: `radial-gradient(150px 95px at 50% 22%, ${hexAlpha(character.colorPalette?.[0] || '#7b5cff', 0.30)}, #14132e 72%)` }}>
             {character.referenceImages?.[0] ? (
@@ -203,11 +203,11 @@ export default function CharacterDetailPage({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <EditField label="Description" value={form.description || ''} onChange={value => setForm(prev => ({ ...prev, description: value }))} multiline />
             <EditField label="Art style" value={form.artStyle || ''} onChange={value => setForm(prev => ({ ...prev, artStyle: value }))} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <EditField label="Costume / outfit" value={form.costumeDetails || ''} onChange={value => setForm(prev => ({ ...prev, costumeDetails: value }))} multiline />
               <EditField label="Accessories" value={form.accessories || ''} onChange={value => setForm(prev => ({ ...prev, accessories: value }))} multiline />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <EditField label="Body proportions" value={form.bodyProportions || ''} onChange={value => setForm(prev => ({ ...prev, bodyProportions: value }))} />
               <EditField label="Personality" value={form.personalityNotes || ''} onChange={value => setForm(prev => ({ ...prev, personalityNotes: value }))} />
             </div>
@@ -215,7 +215,7 @@ export default function CharacterDetailPage({
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 40px' }}>
+            <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 40px' }}>
               <AttrRow label="Description" value={character.description} />
               <AttrRow label="Art style" value={character.artStyle} />
               <AttrRow label="Costume / outfit" value={character.costumeDetails} />

@@ -199,7 +199,7 @@ export default function ExportPage({
         <p style={{ margin: 0, color: '#9a96c4', fontSize: '13px' }}>Transparent PNGs, consistent canvas & anchor, Godot-friendly names, optional pose sheet + manifest.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 1fr', gap: '20px', alignItems: 'start' }}>
+      <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '300px 1fr 1fr', gap: '20px', alignItems: 'start' }}>
         <section style={panelStyle}>
           <div style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4', marginBottom: '14px' }}>EXPORT SETTINGS</div>
           <FieldLabel>FILE PREFIX</FieldLabel>
