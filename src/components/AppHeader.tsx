@@ -14,18 +14,21 @@ export function AppHeader() {
   const charMatch = pathname.match(/^\/(characters|generate|export)\/([^/]+)$/);
   const charId = charMatch?.[2];
   const isCharView = !!charMatch && !isCreate;
+  // Only a real character route should fetch. Otherwise "/characters/new"
+  // matches the regex with charId="new" and fires GET /api/characters/new -> 404.
+  const fetchId = isCharView ? charId : null;
 
   useEffect(() => {
-    if (!charId) {
+    if (!fetchId) {
       setCharacter(null);
       return;
     }
 
-    fetch(`/api/characters/${charId}`)
+    fetch(`/api/characters/${fetchId}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => setCharacter(data))
       .catch(() => setCharacter(null));
-  }, [charId]);
+  }, [fetchId]);
 
   let title = 'Character Gallery';
   if (isCreate) title = 'New Character';
