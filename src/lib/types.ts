@@ -33,11 +33,14 @@ export interface Pose {
   generatedAt?: string;
 }
 
+export type PresetPerspective = 'side' | 'top_down';
+
 export interface PoseSet {
   id: string;
   characterId: string;
   characterName: string;
   preset: string;
+  perspective?: PresetPerspective; // camera viewpoint; defaults to 'side'
   poses: Pose[];
   canvasWidth: number;
   canvasHeight: number;
@@ -66,6 +69,8 @@ export interface GamePreset {
   id: string;
   name: string;
   description: string;
+  /** Camera viewpoint the poses are drawn from. Defaults to 'side' when omitted. */
+  perspective?: PresetPerspective;
   poses: { name: string; displayName: string; description: string; useCase: string }[];
   canvasWidth: number;
   canvasHeight: number;
@@ -138,16 +143,17 @@ export const GAME_PRESETS: GamePreset[] = [
     id: 'topdown',
     name: 'Top-Down',
     description: 'Top-down view game character poses',
+    perspective: 'top_down',
     canvasWidth: 512,
     canvasHeight: 512,
     poses: [
-      { name: 'idle', displayName: 'Idle', description: 'Standing facing down', useCase: 'default pose' },
-      { name: 'walk', displayName: 'Walk', description: 'Walking stride', useCase: 'movement' },
-      { name: 'attack', displayName: 'Attack', description: 'Swing attack', useCase: 'combat' },
-      { name: 'cast', displayName: 'Cast', description: 'Spell casting', useCase: 'magic' },
-      { name: 'hurt', displayName: 'Hurt', description: 'Damage reaction', useCase: 'hit feedback' },
-      { name: 'death', displayName: 'Death', description: 'Collapsed', useCase: 'death state' },
-      { name: 'interact', displayName: 'Interact', description: 'Using object', useCase: 'interaction' },
+      { name: 'idle', displayName: 'Idle', description: 'Standing at rest, seen from directly overhead, facing toward the bottom of the frame', useCase: 'default pose' },
+      { name: 'walk', displayName: 'Walk', description: 'Mid-stride walk cycle seen from overhead, legs scissored along the ground', useCase: 'movement' },
+      { name: 'attack', displayName: 'Attack', description: 'Weapon swing arcing across the ground, viewed from above', useCase: 'combat' },
+      { name: 'cast', displayName: 'Cast', description: 'Spell casting with arms extended outward, viewed from above', useCase: 'magic' },
+      { name: 'hurt', displayName: 'Hurt', description: 'Recoiling from a hit, viewed from above', useCase: 'hit feedback' },
+      { name: 'death', displayName: 'Death', description: 'Collapsed flat on the ground, sprawled, viewed from above', useCase: 'death state' },
+      { name: 'interact', displayName: 'Interact', description: 'Reaching out to use an object, viewed from above', useCase: 'interaction' },
     ],
   },
 ];

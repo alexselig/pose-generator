@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     let poseDefs: { name: string; displayName: string; description: string; useCase: string }[];
     let cw = canvasWidth || 512;
     let ch = canvasHeight || 512;
+    let perspective: 'side' | 'top_down' = 'side';
 
     if (presetId) {
       const preset = GAME_PRESETS.find(p => p.id === presetId);
@@ -27,11 +28,15 @@ export async function POST(request: NextRequest) {
       poseDefs = preset.poses;
       cw = preset.canvasWidth;
       ch = preset.canvasHeight;
+      perspective = preset.perspective ?? 'side';
     } else if (customPoses) {
       poseDefs = customPoses;
     } else {
       return NextResponse.json({ error: 'Either presetId or customPoses required' }, { status: 400 });
     }
+
+    // Top-down sprites are placed by their center; side/front sprites by their feet.
+    const anchor: Pose['anchor'] = perspective === 'top_down' ? 'center' : 'bottom_center';
 
     // Create pose set
     const poses: Pose[] = poseDefs.map(p => ({
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest) {
       description: p.description,
       useCase: p.useCase,
       status: 'pending' as const,
-      anchor: 'bottom_center' as const,
+      anchor,
       locked: false,
     }));
 
@@ -51,6 +56,7 @@ export async function POST(request: NextRequest) {
       characterId,
       characterName: character.name,
       preset: presetId || 'custom',
+      perspective,
       poses,
       canvasWidth: cw,
       canvasHeight: ch,
@@ -108,6 +114,12 @@ export async function PUT(request: NextRequest) {
       poseSet.poses[poseIndex].prompt = prompt;
     }
 
+    // Derive the camera viewpoint: prefer the preset definition (so pose sets
+    // created before perspective was persisted are still fixed on regeneration),
+    // then the value stored on the set, then default to side view.
+    const presetDef = GAME_PRESETS.find(p => p.id === poseSet.preset);
+    const perspective = presetDef?.perspective ?? poseSet.perspective ?? 'side';
+
     const imageData = await generatePoseImage(
       character,
       {
@@ -115,7 +127,8 @@ export async function PUT(request: NextRequest) {
         prompt: prompt || pose.prompt,
       },
       { width: poseSet.canvasWidth, height: poseSet.canvasHeight },
-      referenceImage
+      referenceImage,
+      perspective
     );
 
     // Save image
