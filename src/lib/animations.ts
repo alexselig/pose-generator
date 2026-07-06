@@ -70,13 +70,12 @@ export function readAnimationFrame(characterName: string, action: string, index:
 
 // Slice a generated horizontal filmstrip into normalized frame PNGs.
 //
-// The image model ignores requested aspect ratios (it returns ~1024x1024) and
-// draws a variable number of figures (asked 8, often draws 6-8) sitting in a
-// horizontal band, NOT in full-height even columns. So we segment by CONTENT:
-// find the figures via transparent gaps between them, then rescale every figure
-// by one common factor and bottom-align it on a fixed ground line. This keeps
-// character scale consistent and feet on a baseline so the frames loop cleanly,
-// regardless of how many the model drew or where it placed them.
+// The model returns an OPAQUE ~1024x1024 image with a variable number of figures
+// (asked 8, often draws 6-8) packed close together in a horizontal band. We (1)
+// flood-fill the near-white background to real alpha, (2) segment figures by
+// connected components of character "ink" (robust to close spacing and to light
+// character parts), then (3) rescale every figure by one shared factor and
+// bottom-align it on a fixed ground line so the frames loop cleanly.
 export async function sliceFilmstrip(
   stripBase64: string,
   canvasWidth: number,
@@ -101,7 +100,7 @@ export async function sliceFilmstrip(
     const o = i * channels;
     const r = data[o], g = data[o + 1], b = data[o + 2];
     const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
-    return mn >= 214 && mx - mn <= 22; // light + low saturation
+    return mn >= 232 && mx - mn <= 18; // only near-white, low saturation (spare cream)
   };
   const seen = new Uint8Array(npx);
   const stack: number[] = [];
@@ -131,82 +130,87 @@ export async function sliceFilmstrip(
   }
   const keyedPng = await sharp(keyed, { raw: { width, height, channels: 4 } }).png().toBuffer();
 
-  // Column profile over the now-transparent image -> figure spans.
-  const colHasContent: boolean[] = new Array(width).fill(false);
-  const colTop: number[] = new Array(width).fill(Infinity);
-  const colBot: number[] = new Array(width).fill(-1);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (alpha[y * width + x] > 40) {
-        colHasContent[x] = true;
-        if (y < colTop[x]) colTop[x] = y;
-        if (y > colBot[x]) colBot[x] = y;
-      }
-    }
+  // SEGMENTATION by connected components of character "ink" (saturated or dark
+  // pixels). This is robust both to light character parts (a near-white cream
+  // shirt the background key would fragment) AND to figures the model packs close
+  // together, which column-gap slicing merges into blobs. Each character is a
+  // connected blob; components that heavily x-overlap (a figure's detached parts,
+  // e.g. a held tool) merge into one figure.
+  const inkMask = new Uint8Array(npx);
+  for (let i = 0; i < npx; i++) {
+    const o = i * channels;
+    const r = data[o], g = data[o + 1], b = data[o + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx - mn > 28 || mx < 205) inkMask[i] = 1; // colorful OR dark = character
   }
 
-  // Group consecutive content columns into figures. Bridge tiny transparent gaps
-  // (e.g. between an outstretched arm and the torso) and drop sliver noise.
-  const minGap = Math.max(6, Math.round(width * 0.012));
-  const minFigureWidth = Math.max(8, Math.round(width * 0.02));
-  const spans: Array<{ x0: number; x1: number }> = [];
-  let runStart = -1;
-  let gap = 0;
-  for (let x = 0; x < width; x++) {
-    if (colHasContent[x]) {
-      if (runStart === -1) runStart = x;
-      gap = 0;
-    } else if (runStart !== -1) {
-      gap++;
-      if (gap >= minGap) {
-        spans.push({ x0: runStart, x1: x - gap });
-        runStart = -1;
-        gap = 0;
-      }
+  // Label 4-connected components, tracking area + bbox.
+  const label = new Int32Array(npx);
+  const ccStack: number[] = [];
+  const comps: Array<{ area: number; minx: number; maxx: number; miny: number; maxy: number }> = [];
+  let cur = 0;
+  for (let s = 0; s < npx; s++) {
+    if (!inkMask[s] || label[s]) continue;
+    cur++;
+    let area = 0, minx = width, maxx = 0, miny = height, maxy = 0;
+    ccStack.push(s);
+    label[s] = cur;
+    while (ccStack.length) {
+      const i = ccStack.pop() as number;
+      const x = i % width, y = (i / width) | 0;
+      area++;
+      if (x < minx) minx = x;
+      if (x > maxx) maxx = x;
+      if (y < miny) miny = y;
+      if (y > maxy) maxy = y;
+      if (x + 1 < width && inkMask[i + 1] && !label[i + 1]) { label[i + 1] = cur; ccStack.push(i + 1); }
+      if (x - 1 >= 0 && inkMask[i - 1] && !label[i - 1]) { label[i - 1] = cur; ccStack.push(i - 1); }
+      if (y + 1 < height && inkMask[i + width] && !label[i + width]) { label[i + width] = cur; ccStack.push(i + width); }
+      if (y - 1 >= 0 && inkMask[i - width] && !label[i - width]) { label[i - width] = cur; ccStack.push(i - width); }
     }
+    comps.push({ area, minx, maxx, miny, maxy });
   }
-  if (runStart !== -1) spans.push({ x0: runStart, x1: width - 1 });
-  const figures = spans.filter(s => s.x1 - s.x0 + 1 >= minFigureWidth);
 
-  // Turn spans into per-frame cells. Over-wide spans (two strides that overlapped
-  // into one blob) are split into equal sub-frames using the median single-figure
-  // width. If segmentation fails, fall back to an even N-column split.
-  const cells: Array<{ x0: number; x1: number }> = [];
-  if (figures.length >= 2 && figures.length <= 24) {
-    const widths = figures.map(f => f.x1 - f.x0 + 1).sort((a, b) => a - b);
-    const unit = widths[Math.floor(widths.length / 2)] || 1;
-    for (const f of figures) {
-      const w = f.x1 - f.x0 + 1;
-      const n = Math.max(1, Math.min(4, Math.round(w / unit)));
-      const sw = w / n;
-      for (let k = 0; k < n; k++) {
-        cells.push({ x0: Math.round(f.x0 + k * sw), x1: Math.round(f.x0 + (k + 1) * sw) - 1 });
+  // Keep significant components (drop specks); merge ones that x-overlap > 40% of
+  // the smaller into a single figure.
+  const minArea = Math.round(npx * 0.0004);
+  const bigComps = comps.filter(c => c.area >= minArea).sort((a, b) => a.minx - b.minx);
+  const boxes: Array<{ left: number; top: number; width: number; height: number }> = [];
+  for (const c of bigComps) {
+    const cw = c.maxx - c.minx + 1;
+    let merged = false;
+    for (const f of boxes) {
+      const overlap = Math.min(c.maxx, f.left + f.width - 1) - Math.max(c.minx, f.left) + 1;
+      if (overlap > 0.4 * Math.min(cw, f.width)) {
+        const nx0 = Math.min(f.left, c.minx);
+        const nx1 = Math.max(f.left + f.width - 1, c.maxx);
+        const ny0 = Math.min(f.top, c.miny);
+        const ny1 = Math.max(f.top + f.height - 1, c.maxy);
+        f.left = nx0; f.width = nx1 - nx0 + 1; f.top = ny0; f.height = ny1 - ny0 + 1;
+        merged = true;
+        break;
       }
     }
-  } else {
+    if (!merged) boxes.push({ left: c.minx, top: c.miny, width: cw, height: c.maxy - c.miny + 1 });
+  }
+  boxes.sort((a, b) => a.left - b.left);
+
+  // Fallback: if nothing usable was found, even-split by the expected count.
+  if (boxes.length === 0) {
     const cellW = Math.floor(width / expectedFrames);
     for (let i = 0; i < expectedFrames; i++) {
-      cells.push({ x0: i * cellW, x1: i === expectedFrames - 1 ? width - 1 : (i + 1) * cellW - 1 });
+      const left = i * cellW;
+      boxes.push({ left, top: 0, width: i === expectedFrames - 1 ? width - left : cellW, height });
     }
   }
 
-  const boxes: Array<{ left: number; top: number; width: number; height: number }> = [];
-  for (const c of cells) {
-    let top = Infinity;
-    let bot = -1;
-    for (let x = c.x0; x <= c.x1; x++) {
-      if (colTop[x] < top) top = colTop[x];
-      if (colBot[x] > bot) bot = colBot[x];
-    }
-    if (bot >= top) boxes.push({ left: c.x0, top, width: c.x1 - c.x0 + 1, height: bot - top + 1 });
-  }
-  if (boxes.length === 0) throw new Error('No frames detected in filmstrip');
-
-  // One shared scale factor (from the tallest figure) preserves relative sizes so
-  // the walk's up/down bob survives; feet bottom-align to a fixed ground line.
+  // One shared scale keeps every figure the same size (preserves the walk bob),
+  // clamped so the widest figure still fits the canvas; feet bottom-align to a
+  // fixed ground line.
   const targetHeight = Math.round(canvasHeight * 0.82);
   const maxFigureHeight = Math.max(...boxes.map(b => b.height));
-  const scale = targetHeight / maxFigureHeight;
+  const maxFigureWidth = Math.max(...boxes.map(b => b.width));
+  const scale = Math.min(targetHeight / maxFigureHeight, (canvasWidth * 0.96) / maxFigureWidth);
   const baselinePad = Math.round(canvasHeight * 0.08);
 
   const frames: Buffer[] = [];

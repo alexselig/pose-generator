@@ -12,10 +12,11 @@ interface LightboxProps {
   startIndex: number;
   onClose: () => void;
   onRegenerate?: (index: number, prompt: string) => Promise<void>;
+  onAnimate?: (index: number) => void;
   regenerating?: boolean;
 }
 
-export function Lightbox({ images, startIndex, onClose, onRegenerate, regenerating }: LightboxProps) {
+export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate, regenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [prompt, setPrompt] = useState('');
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +71,24 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, regenerati
           style={{ maxWidth: '80vw', maxHeight: onRegenerate ? '58vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
         />
         <span style={{ font: '600 14px var(--font-display)', color: '#e6e3f5' }}>{img.alt}</span>
+
+        {onAnimate && (
+          <button
+            onClick={() => onAnimate(index)}
+            style={{
+              background: 'var(--gradient-brand)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'var(--radius-btn)',
+              padding: '9px 18px',
+              font: '700 13px var(--font-display)',
+              cursor: 'pointer',
+              boxShadow: '0 8px 20px -10px rgba(91,108,255,.9)',
+            }}
+          >
+            ✨ + Animation
+          </button>
+        )}
 
         {onRegenerate && (
           <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '8px' }}>

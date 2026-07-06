@@ -7,7 +7,7 @@ import {
   sliceFilmstrip,
 } from '@/lib/animations';
 import { generateAnimationFilmstrip } from '@/lib/gemini';
-import { ANIMATION_PRESETS } from '@/lib/types';
+import { getAnimationSpec } from '@/lib/types';
 
 // sharp + a full model round-trip; keep off the edge runtime and give it room.
 export const runtime = 'nodejs';
@@ -32,22 +32,21 @@ export async function POST(
       return NextResponse.json({ error: 'Character not found' }, { status: 404 });
     }
 
-    const preset = ANIMATION_PRESETS.find(p => p.action === clip.action);
-    if (!preset) {
-      return NextResponse.json({ error: 'Animation preset not found' }, { status: 404 });
-    }
+    const spec = getAnimationSpec(clip.action, clip.displayName);
 
     clip.status = 'generating';
     clip.updatedAt = new Date().toISOString();
     saveAnimationClip(clip);
 
-    // Same reference resolution as pose generation: prefer the persisted
-    // reference image, fall back to the first inline reference.
-    const reference = character.referenceImages.length > 0
-      ? getPoseImage(character.id, 'reference_0') || character.referenceImages[0]
-      : undefined;
+    // Prefer the character's STATIC POSE image for this action as the reference —
+    // it anchors both identity and the exact stance/facing to animate. Fall back
+    // to the persisted reference, then the first inline reference.
+    const reference =
+      getPoseImage(character.id, clip.action) ||
+      getPoseImage(character.id, 'reference_0') ||
+      (character.referenceImages.length > 0 ? character.referenceImages[0] : undefined);
 
-    const strip = await generateAnimationFilmstrip(character, preset, reference);
+    const strip = await generateAnimationFilmstrip(character, spec, reference);
     const frameBuffers = await sliceFilmstrip(strip, clip.canvasWidth, clip.canvasHeight, clip.frameCount);
 
     clip.frames = frameBuffers.map((buf, i) => {

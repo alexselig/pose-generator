@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Character, Pose, PresetPerspective, AnimationPreset } from './types';
+import { Character, Pose, PresetPerspective, AnimationSpec } from './types';
 
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -197,43 +197,50 @@ Generate ONLY the character in this pose with a transparent/empty background. No
 // animation in a SINGLE model call. One generation keeps line weight, scale, and
 // the ground line coherent across frames (independent per-frame calls "boil" and
 // jitter). The caller slices the returned strip into N frames.
+//
+// The reference image should be the character's static pose FOR THIS ACTION (the
+// exact stance + facing to animate); we lock identity AND facing to it and only
+// let the limbs move through `spec.motion`. This is what stops the character from
+// turning back and forth.
 export async function generateAnimationFilmstrip(
   character: Character,
-  preset: AnimationPreset,
+  spec: AnimationSpec,
   referenceImageBase64?: string
 ): Promise<string> {
   const client = getClient();
-  const n = preset.frameCount;
-  const perspective: PresetPerspective = preset.perspective ?? 'side';
+  const n = spec.frameCount;
+  const perspective: PresetPerspective = spec.perspective ?? 'side';
+  const topDown = perspective === 'top_down';
 
   // Same reasoning as generatePoseImage: a front-facing reference drags top-down
   // renders back to eye level, so only side/front clips attach the reference.
-  const useReferenceImage = referenceImageBase64 && perspective !== 'top_down';
+  const useReferenceImage = referenceImageBase64 && !topDown;
 
+  const facing = topDown ? 'top-down overhead view' : 'right-facing side profile';
   const identity = useReferenceImage
-    ? `IDENTITY LOCK (a reference image of this exact character is attached above): reproduce the SAME character in every frame — identical face, hair, skin tone, outfit, colors, accessories, and proportions. Only the body POSE changes between frames.`
-    : `IDENTITY LOCK: reproduce this EXACT character in every frame — same outfit, colors, accessories, hair, and proportions. Only the body POSE changes between frames.`;
+    ? `IDENTITY LOCK (a reference image of this exact character in the "${spec.displayName}" pose is attached above): reproduce the SAME character in every frame — identical face, hair, skin tone, outfit, colors, accessories, and proportions — and keep the SAME body facing/orientation as the reference.`
+    : `IDENTITY LOCK: reproduce this EXACT character in every frame — same outfit, colors, accessories, hair, and proportions.`;
 
-  const frameLines = preset.frames
-    .map(f => `Frame ${f.index + 1} (${f.label}): ${f.description}`)
-    .join('\n');
-
-  const prompt = `Generate a SINGLE wide horizontal sprite-strip image for a 2D game animation: exactly ${n} frames of the character performing a "${preset.displayName}" cycle, arranged left to right in ${n} equal-width cells.
+  const prompt = `Generate a SINGLE wide horizontal sprite-strip image for a 2D game animation: exactly ${n} frames of the character performing "${spec.displayName}", arranged left to right in ${n} equal-width cells.
 
 ${identity}
 ${buildCharacterPrompt(character)}
 
+DIRECTION LOCK (CRITICAL — this is what makes it read as motion instead of turning):
+- EVERY frame shows the character in the EXACT SAME facing: a ${facing}.
+- The character NEVER turns around, NEVER flips to face the other way, NEVER rotates to face the viewer/camera, and is NEVER mirrored. Keep the identical facing in all ${n} frames.
+- ONLY the limbs and body move through the motion below. The overall body orientation, scale, and ground line stay identical in every frame.
+
+MOTION (what changes across the ${n} frames, left to right): ${spec.motion}
+Spread this motion evenly across the ${n} frames so it ${spec.loop ? 'loops smoothly back to the first frame' : 'plays once from start to finish'}.
+
 FILMSTRIP LAYOUT (CRITICAL):
 - ONE wide image, ${n} frames in a single horizontal row, left to right, each frame the same width (overall aspect ratio about ${n}:1).
-- Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, or text — just the ${n} character drawings evenly spaced on a fully transparent background.
-- ${perspective === 'top_down' ? 'Top-down overhead view.' : 'Side view, character facing RIGHT, walking in place.'}
-- CONSISTENCY ACROSS FRAMES (this is what makes it loop): identical character scale in every frame; every frame's feet rest on the SAME horizontal ground line; the character is centered the same way in each cell. Same clean line weight and shading in every frame.
-
-FRAMES (left to right, in order):
-${frameLines}
+- Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, or text — just the ${n} character drawings evenly spaced.
+- Identical character scale in every frame; every frame's feet rest on the SAME horizontal ground line; the character is centered the same way in each cell. Same clean line weight and shading in every frame.
 
 RENDERING:
-- Transparent background only — no ground shadow, no scenery, no props beyond the character's own gear.
+- Plain flat background, no scenery or ground shadow.
 - Clean illustrated 2D game style, readable at small sizes, consistent silhouette.
 - Output ONLY the single horizontal strip of ${n} character frames. No text, no UI, no captions.`;
 
@@ -247,7 +254,7 @@ RENDERING:
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
   if (useReferenceImage) {
-    parts.push({ text: 'Reference image of the character (canonical appearance). Keep the character identical to this in every frame; change only the pose:' });
+    parts.push({ text: `Reference image of the character in the "${spec.displayName}" pose. Keep the character AND its facing identical to this in every frame; only move the limbs through the animation:` });
     parts.push({ inlineData: { mimeType: detectImageMimeType(referenceImageBase64 as string), data: referenceImageBase64 as string } });
   }
   parts.push({ text: prompt });

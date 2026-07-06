@@ -92,6 +92,16 @@ export default function CharacterDetailPage({
     }
   };
 
+  const handleAnimate = (imageIndex: number) => {
+    const image = currentPoses[imageIndex];
+    if (!image || !character) return;
+    const charSlug = character.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const base = image.name.replace(/\.png$/, '');
+    const action = base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
+    lightbox.close();
+    router.push(`/animate/${id}?action=${encodeURIComponent(action)}&generate=1`);
+  };
+
   const handleSave = async () => {
     const res = await fetch(`/api/characters/${id}`, {
       method: 'PUT',
@@ -269,7 +279,7 @@ export default function CharacterDetailPage({
           </div>
         )}
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} regenerating={regenerating} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} onAnimate={handleAnimate} regenerating={regenerating} />}
     </div>
   );
 }

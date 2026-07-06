@@ -188,55 +188,92 @@ export interface AnimationClip {
   updatedAt: string;
 }
 
-// One keyframe phase of a preset animation. The description is written for the
-// image model: it names the leg/arm positions for that phase so the generated
-// filmstrip reads as a real cycle instead of N near-identical drawings.
-export interface AnimationFramePhase {
-  index: number;
-  label: string; // short human label, e.g. 'Contact (left lead)'
-  description: string; // phase description injected into the filmstrip prompt
-}
-
-export interface AnimationPreset {
-  id: string; // preset id, e.g. 'walk'
-  action: string; // canonical action slug used for filenames + Godot anim name
+// Per-action motion metadata. Instead of hand-authoring keyframes (which made the
+// model flip the character's facing), we give the model the character's actual
+// pose image as the reference plus a short MOTION description for the action, and
+// enforce a hard "same facing every frame" constraint in the prompt.
+export interface AnimationSpec {
+  action: string; // canonical slug, matches the pose name (e.g. 'walk', 'jump')
   displayName: string;
-  description: string;
-  perspective?: PresetPerspective; // defaults to 'side'
+  perspective: PresetPerspective;
   frameCount: number;
   fps: number;
   loop: boolean;
   canvasWidth: number;
   canvasHeight: number;
-  frames: AnimationFramePhase[];
+  motion: string; // how the pose moves, injected into the filmstrip prompt
 }
 
-// Classic 8-drawing side-view walk cycle (two steps = one full loop). Phase order
-// per step: Contact -> Down/recoil -> Passing -> Up/high-point, then the mirror
-// for the opposite leg. Arms swing opposite the legs throughout. The character
-// walks in place, faces screen-right, and keeps a constant scale + ground line so
-// the sliced frames line up when looped.
-export const WALK_CYCLE_PRESET: AnimationPreset = {
-  id: 'walk',
-  action: 'walk',
-  displayName: 'Walk',
-  description: 'Side-view 8-frame walk cycle, facing right, looping.',
-  perspective: 'side',
-  frameCount: 8,
+interface MotionDef {
+  motion: string;
+  displayName?: string;
+  frameCount?: number;
+  fps?: number;
+  loop?: boolean;
+}
+
+const DEFAULT_MOTION: MotionDef = {
+  motion: 'a short, natural animation that brings this pose to life with subtle looping motion of the limbs and body.',
+  frameCount: 6,
   fps: 12,
   loop: true,
-  canvasWidth: 512,
-  canvasHeight: 512,
-  frames: [
-    { index: 0, label: 'Contact (left lead)', description: 'Contact pose: legs spread in a wide stride, LEFT foot forward with heel striking the ground, RIGHT foot back on its toe pushing off. Right arm swings forward, left arm swings back. Body at mid height.' },
-    { index: 1, label: 'Down / recoil', description: 'Down pose (lowest point): weight drops onto the forward left leg which bends to absorb it, rear right foot lifting off. Body compressed to its lowest height. Arms near the body mid-swing.' },
-    { index: 2, label: 'Passing', description: 'Passing pose: the rear right leg swings forward and passes directly under the body next to the straight standing left leg. Legs are close together, body rising. Arms roughly vertical at the sides.' },
-    { index: 3, label: 'Up / high point', description: 'Up pose (highest point): the standing left leg straightens and pushes the body to its tallest, while the right leg reaches forward for the next step. Left arm swings forward, right arm back.' },
-    { index: 4, label: 'Contact (right lead)', description: 'Contact pose, mirrored: legs spread in a wide stride, RIGHT foot forward with heel strike, LEFT foot back on its toe. Left arm swings forward, right arm back. Body at mid height.' },
-    { index: 5, label: 'Down / recoil', description: 'Down pose (lowest point), mirrored: weight drops onto the forward right leg which bends, rear left foot lifting off. Body at its lowest. Arms near the body mid-swing.' },
-    { index: 6, label: 'Passing', description: 'Passing pose, mirrored: the rear left leg swings forward and passes under the body next to the straight standing right leg. Legs close together, body rising. Arms roughly vertical.' },
-    { index: 7, label: 'Up / high point', description: 'Up pose (highest point), mirrored: the standing right leg straightens and pushes the body tallest, left leg reaching forward. Right arm swings forward, left arm back.' },
-  ],
 };
 
-export const ANIMATION_PRESETS: AnimationPreset[] = [WALK_CYCLE_PRESET];
+// Keyed by pose/action slug. Cyclic actions loop; one-shots (attack, jump, hurt…)
+// don't. Motion text describes ONLY the limb/body movement — facing/scale/ground
+// line are locked by the prompt.
+export const ANIMATION_MOTIONS: Record<string, MotionDef> = {
+  idle: { motion: 'a subtle idle breathing loop — a gentle up-and-down bob of the chest and shoulders with a slight weight shift; feet stay planted.', frameCount: 6, fps: 8 },
+  walk: { motion: 'a smooth walk cycle — the legs alternate through contact, low point, passing, and high point while the arms swing in opposition; the character strides in place.', frameCount: 8 },
+  walk_forward: { motion: 'a forward walk cycle — legs alternate through a full stride while the arms swing in opposition; the character strides in place.', frameCount: 8 },
+  forward: { motion: 'a forward walk cycle — legs alternate through a full stride while the arms swing in opposition; the character strides in place.', frameCount: 8 },
+  walk_back: { motion: 'a backward walk cycle — the legs step in reverse through a full stride while the character keeps the same facing.', frameCount: 8 },
+  run: { motion: 'a fast run cycle — long strides with the body leaning into the run, legs cycling quickly and arms pumping.', frameCount: 8 },
+  jump: { motion: 'a jump — an anticipation crouch, an explosive push-off, an airborne apex with legs tucked and arms up, then a landing crouch.', frameCount: 6, loop: false },
+  fall: { motion: 'a falling loop — arms and legs bracing and flailing slightly as the character drops.', frameCount: 4 },
+  land: { motion: 'a landing impact — from airborne down into a deep absorbing crouch and back up to stance.', frameCount: 4, loop: false },
+  crouch: { motion: 'a crouch loop — lowering into a low crouch with a subtle idle bob while staying low.', frameCount: 4 },
+  attack: { motion: 'a melee attack — a wind-up, the strike thrusting forward, then recovery to stance.', frameCount: 6, loop: false },
+  heavy_attack: { motion: 'a heavy overhead attack — a big wind-up, a powerful downward strike, and a slow recovery.', frameCount: 6, loop: false },
+  punch: { motion: 'a quick jab — the fist snaps forward with a small body twist and retracts to guard.', frameCount: 4, loop: false },
+  light_punch: { motion: 'a quick jab — the fist snaps forward and retracts to guard.', frameCount: 4, loop: false },
+  heavy_punch: { motion: 'a heavy punch — the fist winds back, drives forward with the whole body behind it, then recovers.', frameCount: 5, loop: false },
+  kick: { motion: 'a quick kick — the leg snaps forward and returns to stance.', frameCount: 4, loop: false },
+  light_kick: { motion: 'a quick kick — the leg snaps forward and returns to stance.', frameCount: 4, loop: false },
+  heavy_kick: { motion: 'a roundhouse kick — the leg swings up and around with the hips, then returns to stance.', frameCount: 5, loop: false },
+  block: { motion: 'a block — the arms/guard raise into a defensive brace and settle.', frameCount: 4 },
+  dodge: { motion: 'a dodge — a quick sidestep and lean away, then back to stance.', frameCount: 4, loop: false },
+  cast: { motion: 'a spell cast — gathering energy, the arms sweeping forward to release it, then settling.', frameCount: 6, loop: false },
+  cast_spell: { motion: 'a spell cast — gathering energy, the arms sweeping forward to release it, then settling.', frameCount: 6, loop: false },
+  hurt: { motion: 'a hit reaction — the body recoils backward from an impact and returns to stance.', frameCount: 4, loop: false },
+  death: { motion: 'a defeat — the character staggers and collapses to the ground.', frameCount: 5, loop: false },
+  knockdown: { motion: 'a knockdown — the character is knocked off balance and falls to the ground.', frameCount: 5, loop: false },
+  victory: { motion: 'a victory celebration loop — an energetic triumphant gesture with a little bounce, arms raised.', frameCount: 6 },
+  talk: { motion: 'a talking loop — subtle head and hand gestures as if speaking.', frameCount: 4, fps: 8 },
+  interact: { motion: 'an interaction — reaching out to use or grab something and returning upright.', frameCount: 5, loop: false },
+  pick_up: { motion: 'a pick-up — bending down to collect an item and straightening back up.', frameCount: 5, loop: false },
+  point: { motion: 'a pointing gesture loop — the arm extends to point with subtle idle motion.', frameCount: 4 },
+  up: { motion: 'a reaching-up gesture loop — the arm raises with a subtle bob.', frameCount: 4 },
+};
+
+function titleCase(slug: string): string {
+  return slug.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Resolve an AnimationSpec for any action slug, using known motion metadata or a
+// sensible default. displayName defaults to the pose's title-cased name.
+export function getAnimationSpec(action: string, displayName?: string): AnimationSpec {
+  const key = action.toLowerCase().trim();
+  const def = ANIMATION_MOTIONS[key] || DEFAULT_MOTION;
+  return {
+    action: key,
+    displayName: displayName || def.displayName || titleCase(key),
+    perspective: 'side',
+    frameCount: def.frameCount ?? 6,
+    fps: def.fps ?? 12,
+    loop: def.loop ?? true,
+    canvasWidth: 512,
+    canvasHeight: 512,
+    motion: def.motion,
+  };
+}

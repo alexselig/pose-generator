@@ -1,24 +1,46 @@
 'use client';
 
-import { use, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Character, AnimationClip, ANIMATION_PRESETS } from '@/lib/types';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Character, AnimationClip } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+function titleCase(slug: string): string {
+  return slug.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function AnimatePage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>}>
+      <AnimateInner params={params} />
+    </Suspense>
+  );
+}
+
+function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const search = useSearchParams();
   const { showToast } = useToast();
+
+  const queryAction = (search.get('action') || '').toLowerCase();
+  const autoGen = search.get('generate') === '1';
 
   const [character, setCharacter] = useState<Character | null>(null);
   const [clips, setClips] = useState<AnimationClip[]>([]);
-  const [action, setAction] = useState('walk');
+  const [actions, setActions] = useState<string[]>([]);
+  const [action, setAction] = useState(queryAction || 'walk');
   const [clip, setClip] = useState<AnimationClip | null>(null);
   const [generating, setGenerating] = useState(false);
   const [playing, setPlaying] = useState(true);
   const [fps, setFps] = useState(12);
   const [frameIndex, setFrameIndex] = useState(0);
+  const [clipsLoaded, setClipsLoaded] = useState(false);
+  const autoGenFired = useRef(false);
 
   useEffect(() => {
     fetch(`/api/characters/${id}`)
@@ -29,47 +51,45 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
     fetch(`/api/characters/${id}/animations`)
       .then(res => (res.ok ? res.json() : []))
       .then((data: AnimationClip[]) => setClips(data))
-      .catch(() => setClips([]));
-  }, [id, router]);
+      .catch(() => setClips([]))
+      .finally(() => setClipsLoaded(true));
 
-  // When clips or the chosen action change, preview the latest clip for it.
+    // Derive the animatable actions from the character's existing poses.
+    fetch(`/api/characters/${id}/images`)
+      .then(res => (res.ok ? res.json() : { images: [], characterName: '' }))
+      .then((body: { images?: { name: string; isArchive: boolean }[]; characterName?: string }) => {
+        const charSlug = slugify(body.characterName || '');
+        const slugs = (body.images || [])
+          .filter(im => !im.isArchive)
+          .map(im => {
+            const base = im.name.replace(/\.png$/, '');
+            return charSlug && base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
+          });
+        const uniq = Array.from(new Set(slugs));
+        setActions(uniq);
+        setAction(prev => (queryAction ? prev : (uniq.includes(prev) ? prev : uniq[0] || prev)));
+      })
+      .catch(() => setActions([]));
+  }, [id, router, queryAction]);
+
+  // Show the latest clip for the chosen action.
   useEffect(() => {
     const latest = clips.find(c => c.action === action) || null;
     setClip(latest);
     if (latest) setFps(latest.fps);
   }, [clips, action]);
 
-  const preset = ANIMATION_PRESETS.find(p => p.id === action);
   const isGenerated = clip?.status === 'generated' && clip.frameCount > 0;
 
-  // Loop the frames while playing.
-  useEffect(() => {
-    if (!isGenerated || !playing || !clip) return;
-    const timer = setInterval(() => {
-      setFrameIndex(i => (i + 1) % clip.frameCount);
-    }, Math.max(40, 1000 / fps));
-    return () => clearInterval(timer);
-  }, [isGenerated, playing, fps, clip]);
-
-  useEffect(() => { setFrameIndex(0); }, [clip?.id, clip?.updatedAt]);
-
-  const frameUrls = useMemo(() => {
-    if (!clip || !isGenerated) return [];
-    return Array.from({ length: clip.frameCount }, (_, i) =>
-      `/api/animations/${clip.id}/frames/${i}?v=${encodeURIComponent(clip.updatedAt)}`
-    );
-  }, [clip, isGenerated]);
-
-  const handleGenerate = async () => {
+  const generate = async (targetAction: string) => {
     setGenerating(true);
     try {
-      // Reuse the existing clip for this action, or create one.
-      let target = clips.find(c => c.action === action);
+      let target = clips.find(c => c.action === targetAction);
       if (!target) {
         const createRes = await fetch('/api/animations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ characterId: id, action }),
+          body: JSON.stringify({ characterId: id, action: targetAction, displayName: titleCase(targetAction) }),
         });
         if (!createRes.ok) throw new Error('create failed');
         target = await createRes.json();
@@ -83,10 +103,7 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
       setClip(updated);
       setFps(updated.fps);
       setPlaying(true);
-      setClips(prev => {
-        const rest = prev.filter(c => c.id !== updated.id);
-        return [updated, ...rest];
-      });
+      setClips(prev => [updated, ...prev.filter(c => c.id !== updated.id)]);
       showToast(`${updated.displayName} generated — ${updated.frameCount} frames`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to generate animation');
@@ -94,6 +111,40 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
       setGenerating(false);
     }
   };
+
+  // Auto-start generation once when arriving from a pose's "+ Animation" button.
+  // Wait for existing clips to load so we don't regenerate one that already exists.
+  useEffect(() => {
+    if (!autoGen || autoGenFired.current || !character || !clipsLoaded || !action) return;
+    autoGenFired.current = true;
+    const existing = clips.find(c => c.action === action);
+    if (existing && existing.status === 'generated') return;
+    void generate(action);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGen, character, clipsLoaded, clips, action]);
+
+  // Loop the frames while playing.
+  useEffect(() => {
+    if (!isGenerated || !playing || !clip) return;
+    const timer = setInterval(() => setFrameIndex(i => (i + 1) % clip.frameCount), Math.max(40, 1000 / fps));
+    return () => clearInterval(timer);
+  }, [isGenerated, playing, fps, clip]);
+
+  useEffect(() => { setFrameIndex(0); }, [clip?.id, clip?.updatedAt]);
+
+  const frameUrls = useMemo(() => {
+    if (!clip || !isGenerated) return [];
+    return Array.from({ length: clip.frameCount }, (_, i) =>
+      `/api/animations/${clip.id}/frames/${i}?v=${encodeURIComponent(clip.updatedAt)}`
+    );
+  }, [clip, isGenerated]);
+
+  // Action buttons: the character's poses, plus the query action if not present.
+  const actionList = useMemo(() => {
+    const set = new Set(actions);
+    if (queryAction) set.add(queryAction);
+    return Array.from(set);
+  }, [actions, queryAction]);
 
   if (!character) {
     return <div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>;
@@ -114,7 +165,6 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
           <div style={{ position: 'relative', width: '360px', height: '360px', borderRadius: '18px', overflow: 'hidden', background: 'repeating-conic-gradient(#2a2748 0% 25%, #23203f 0% 50%) 50% / 34px 34px', border: '1px solid var(--border-hairline)' }}>
             {isGenerated ? (
               frameUrls.map((url, i) => (
-                // Preload every frame; show only the current one to avoid flicker.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={url}
@@ -130,7 +180,6 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
             )}
           </div>
 
-          {/* Playback controls */}
           {isGenerated && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '14px' }}>
               <button onClick={() => setPlaying(p => !p)} style={secondaryButton}>
@@ -147,28 +196,37 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
 
         {/* Controls + filmstrip */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.07em', color: '#7d79ad', marginBottom: '7px' }}>ANIMATION</div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {ANIMATION_PRESETS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setAction(p.id)}
-                style={{ ...secondaryButton, ...(action === p.id ? { background: 'var(--gradient-brand)', color: '#fff', border: 'none' } : {}) }}
-              >
-                {p.displayName}
-              </button>
-            ))}
+          <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.07em', color: '#7d79ad', marginBottom: '7px' }}>
+            POSE / ACTION{actionList.length ? '' : ' — generate poses first'}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {actionList.map(a => {
+              const has = clips.some(c => c.action === a && c.status === 'generated');
+              return (
+                <button
+                  key={a}
+                  onClick={() => setAction(a)}
+                  style={{ ...chip, ...(action === a ? { background: 'var(--gradient-brand)', color: '#fff', border: 'none' } : {}) }}
+                  title={has ? 'Has an animation' : 'Not animated yet'}
+                >
+                  {titleCase(a)}{has ? ' ●' : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '16px' }}>
             <div style={{ flex: 1 }} />
             {isGenerated && clip && (
               <a href={`/api/animations/${clip.id}/export`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Export to Godot</a>
             )}
-            <button onClick={handleGenerate} disabled={generating} style={{ ...primaryButton, opacity: generating ? 0.6 : 1, cursor: generating ? 'default' : 'pointer' }}>
+            <button onClick={() => generate(action)} disabled={generating || !action} style={{ ...primaryButton, opacity: generating || !action ? 0.6 : 1, cursor: generating ? 'default' : 'pointer' }}>
               {generating ? 'Generating…' : clip ? '↻ Regenerate' : '✨ Generate'}
             </button>
           </div>
 
           <p style={{ margin: '12px 0 0', color: '#9a96c4', fontSize: '12.5px', lineHeight: 1.5 }}>
-            {preset?.description || ''} Generated as one filmstrip, then sliced into transparent, Godot-ready frames.
+            Animating <b style={{ color: '#e6e3f5' }}>{titleCase(action)}</b> — the model animates from this pose in one filmstrip, then it's sliced into transparent, Godot-ready frames.
           </p>
 
           {isGenerated && (
@@ -203,6 +261,16 @@ const secondaryButton: React.CSSProperties = {
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
+};
+
+const chip: React.CSSProperties = {
+  background: 'var(--bg-raised)',
+  color: 'var(--text-bright)',
+  border: '1px solid #353160',
+  borderRadius: '999px',
+  padding: '7px 14px',
+  font: '600 12px var(--font-display)',
+  cursor: 'pointer',
 };
 
 const primaryButton: React.CSSProperties = {
