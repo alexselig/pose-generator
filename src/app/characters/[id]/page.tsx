@@ -173,6 +173,7 @@ export default function CharacterDetailPage({
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button onClick={() => setEditing(value => !value)} style={secondaryButton}>{editing ? 'Cancel' : 'Edit'}</button>
           <button onClick={handleDuplicate} style={secondaryButton}>Duplicate</button>
+          <Link href={`/animate/${id}`} style={{ ...secondaryButton, textDecoration: 'none' }}>Animate</Link>
           <Link href={`/export/${id}`} style={primaryLink}>
             Export →
           </Link>
