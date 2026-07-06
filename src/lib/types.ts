@@ -157,3 +157,86 @@ export const GAME_PRESETS: GamePreset[] = [
     ],
   },
 ];
+
+// ── Animations ───────────────────────────────────────────────────────────────
+// A clip is a short looping animation (e.g. a walk cycle) made of N frames. Each
+// frame is one drawing; frames are stored as individual PNGs on disk and served
+// by URL, and the clip JSON stays slim (no inlined base64), matching the pose
+// storage/serving convention.
+
+export interface AnimationFrame {
+  index: number; // 0-based position within the cycle
+  imagePath?: string; // sliced frame written to data/animations/<slug>/<action>/frame_NN.png
+  status: 'pending' | 'generated';
+}
+
+export interface AnimationClip {
+  id: string;
+  characterId: string;
+  characterName: string;
+  action: string; // canonical slug, e.g. 'walk'
+  displayName: string; // e.g. 'Walk'
+  perspective: PresetPerspective; // camera viewpoint; MVP ships 'side'
+  frameCount: number;
+  fps: number; // playback speed for preview + Godot SpriteFrames
+  loop: boolean;
+  canvasWidth: number;
+  canvasHeight: number;
+  frames: AnimationFrame[];
+  status: 'pending' | 'generating' | 'generated' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// One keyframe phase of a preset animation. The description is written for the
+// image model: it names the leg/arm positions for that phase so the generated
+// filmstrip reads as a real cycle instead of N near-identical drawings.
+export interface AnimationFramePhase {
+  index: number;
+  label: string; // short human label, e.g. 'Contact (left lead)'
+  description: string; // phase description injected into the filmstrip prompt
+}
+
+export interface AnimationPreset {
+  id: string; // preset id, e.g. 'walk'
+  action: string; // canonical action slug used for filenames + Godot anim name
+  displayName: string;
+  description: string;
+  perspective?: PresetPerspective; // defaults to 'side'
+  frameCount: number;
+  fps: number;
+  loop: boolean;
+  canvasWidth: number;
+  canvasHeight: number;
+  frames: AnimationFramePhase[];
+}
+
+// Classic 8-drawing side-view walk cycle (two steps = one full loop). Phase order
+// per step: Contact -> Down/recoil -> Passing -> Up/high-point, then the mirror
+// for the opposite leg. Arms swing opposite the legs throughout. The character
+// walks in place, faces screen-right, and keeps a constant scale + ground line so
+// the sliced frames line up when looped.
+export const WALK_CYCLE_PRESET: AnimationPreset = {
+  id: 'walk',
+  action: 'walk',
+  displayName: 'Walk',
+  description: 'Side-view 8-frame walk cycle, facing right, looping.',
+  perspective: 'side',
+  frameCount: 8,
+  fps: 12,
+  loop: true,
+  canvasWidth: 512,
+  canvasHeight: 512,
+  frames: [
+    { index: 0, label: 'Contact (left lead)', description: 'Contact pose: legs spread in a wide stride, LEFT foot forward with heel striking the ground, RIGHT foot back on its toe pushing off. Right arm swings forward, left arm swings back. Body at mid height.' },
+    { index: 1, label: 'Down / recoil', description: 'Down pose (lowest point): weight drops onto the forward left leg which bends to absorb it, rear right foot lifting off. Body compressed to its lowest height. Arms near the body mid-swing.' },
+    { index: 2, label: 'Passing', description: 'Passing pose: the rear right leg swings forward and passes directly under the body next to the straight standing left leg. Legs are close together, body rising. Arms roughly vertical at the sides.' },
+    { index: 3, label: 'Up / high point', description: 'Up pose (highest point): the standing left leg straightens and pushes the body to its tallest, while the right leg reaches forward for the next step. Left arm swings forward, right arm back.' },
+    { index: 4, label: 'Contact (right lead)', description: 'Contact pose, mirrored: legs spread in a wide stride, RIGHT foot forward with heel strike, LEFT foot back on its toe. Left arm swings forward, right arm back. Body at mid height.' },
+    { index: 5, label: 'Down / recoil', description: 'Down pose (lowest point), mirrored: weight drops onto the forward right leg which bends, rear left foot lifting off. Body at its lowest. Arms near the body mid-swing.' },
+    { index: 6, label: 'Passing', description: 'Passing pose, mirrored: the rear left leg swings forward and passes under the body next to the straight standing right leg. Legs close together, body rising. Arms roughly vertical.' },
+    { index: 7, label: 'Up / high point', description: 'Up pose (highest point), mirrored: the standing right leg straightens and pushes the body tallest, left leg reaching forward. Right arm swings forward, left arm back.' },
+  ],
+};
+
+export const ANIMATION_PRESETS: AnimationPreset[] = [WALK_CYCLE_PRESET];
