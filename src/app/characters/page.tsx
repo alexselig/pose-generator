@@ -5,8 +5,12 @@ import Link from 'next/link';
 import { Character } from '@/lib/types';
 import { groupCharacters } from '@/lib/groups';
 
+// The list endpoint returns characters without inlined referenceImages base64;
+// hasReference tells us whether to render the portrait URL or the placeholder.
+type GalleryCharacter = Character & { hasReference?: boolean };
+
 export default function CharacterGalleryPage() {
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [characters, setCharacters] = useState<GalleryCharacter[]>([]);
   const [poseCounts, setPoseCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -14,7 +18,7 @@ export default function CharacterGalleryPage() {
   useEffect(() => {
     fetch('/api/characters')
       .then(res => res.json())
-      .then(async (data: Character[]) => {
+      .then(async (data: GalleryCharacter[]) => {
         setCharacters(data);
         setLoading(false);
         // Fetch pose counts for each character
@@ -48,7 +52,7 @@ export default function CharacterGalleryPage() {
     gap: '16px',
   };
 
-  const renderCard = (char: Character, idx: number) => {
+  const renderCard = (char: GalleryCharacter, idx: number) => {
     const color = char.colorPalette?.[0] || defaultColors[idx % defaultColors.length];
     return (
       <Link
@@ -69,10 +73,11 @@ export default function CharacterGalleryPage() {
       >
         {/* Character image — full bleed */}
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {char.referenceImages?.[0] ? (
+          {char.hasReference ? (
             <img
-              src={`data:image/png;base64,${char.referenceImages[0]}`}
+              src={`/api/characters/${char.id}/reference`}
               alt={char.name}
+              loading="lazy"
               style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
             />
           ) : (
