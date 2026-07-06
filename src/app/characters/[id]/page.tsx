@@ -3,10 +3,10 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Character, PoseSet } from '@/lib/types';
+import { Character, PoseSet, AnimationClip } from '@/lib/types';
 import { listGroups } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
-import { Lightbox, useLightbox } from '@/components/Lightbox';
+import { Lightbox, useLightbox, LightboxAnimation } from '@/components/Lightbox';
 
 export default function CharacterDetailPage({
   params,
@@ -23,6 +23,7 @@ export default function CharacterDetailPage({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Character>>({});
   const [regenerating, setRegenerating] = useState(false);
+  const [animations, setAnimations] = useState<AnimationClip[]>([]);
   const lightbox = useLightbox();
 
   const reloadImages = () => {
@@ -49,6 +50,11 @@ export default function CharacterDetailPage({
       .then(res => res.ok ? res.json() : [])
       .then((data: Character[]) => setAllCharacters(data))
       .catch(() => setAllCharacters([]));
+
+    fetch(`/api/characters/${id}/animations`)
+      .then(res => res.ok ? res.json() : [])
+      .then((data: AnimationClip[]) => setAnimations(data))
+      .catch(() => setAnimations([]));
   }, [id, router]);
 
   const groups = useMemo(() => listGroups(allCharacters), [allCharacters]);
@@ -92,14 +98,27 @@ export default function CharacterDetailPage({
     }
   };
 
+  const poseActionSlug = (imageName: string): string => {
+    if (!character) return '';
+    const charSlug = character.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const base = imageName.replace(/\.png$/, '');
+    return base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
+  };
+
   const handleAnimate = (imageIndex: number) => {
     const image = currentPoses[imageIndex];
     if (!image || !character) return;
-    const charSlug = character.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    const base = image.name.replace(/\.png$/, '');
-    const action = base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
     lightbox.close();
-    router.push(`/animate/${id}?action=${encodeURIComponent(action)}`);
+    router.push(`/animate/${id}?action=${encodeURIComponent(poseActionSlug(image.name))}`);
+  };
+
+  const resolveAnimation = (imageIndex: number): LightboxAnimation | null => {
+    const image = currentPoses[imageIndex];
+    if (!image) return null;
+    const action = poseActionSlug(image.name);
+    const clip = animations.find(a => a.action === action && a.status === 'generated' && a.frameCount > 0);
+    if (!clip) return null;
+    return { clipId: clip.id, frameCount: clip.frameCount, fps: clip.fps, updatedAt: clip.updatedAt, displayName: clip.displayName };
   };
 
   const handleSave = async () => {
@@ -282,7 +301,7 @@ export default function CharacterDetailPage({
           </div>
         )}
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} onAnimate={handleAnimate} regenerating={regenerating} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} onAnimate={handleAnimate} resolveAnimation={resolveAnimation} regenerating={regenerating} />}
     </div>
   );
 }

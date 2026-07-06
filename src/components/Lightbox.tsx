@@ -7,16 +7,25 @@ export interface LightboxImage {
   alt: string;
 }
 
+export interface LightboxAnimation {
+  clipId: string;
+  frameCount: number;
+  fps: number;
+  updatedAt: string;
+  displayName: string;
+}
+
 interface LightboxProps {
   images: LightboxImage[];
   startIndex: number;
   onClose: () => void;
   onRegenerate?: (index: number, prompt: string) => Promise<void>;
   onAnimate?: (index: number) => void;
+  resolveAnimation?: (index: number) => LightboxAnimation | null;
   regenerating?: boolean;
 }
 
-export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate, regenerating }: LightboxProps) {
+export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate, resolveAnimation, regenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [prompt, setPrompt] = useState('');
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +47,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
 
   if (images.length === 0) return null;
   const img = images[index];
+  const anim = resolveAnimation?.(index) ?? null;
 
   return (
     <div
@@ -65,12 +75,26 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
         {images.length > 1 && (
           <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(247,244,238,.6)' }}>{index + 1} / {images.length}</span>
         )}
-        <img
-          src={img.src}
-          alt={img.alt}
-          style={{ maxWidth: '80vw', maxHeight: onRegenerate ? '58vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
-        />
-        <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '86vw' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            {anim && (
+              <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Static pose</span>
+            )}
+            <img
+              src={img.src}
+              alt={img.alt}
+              style={{ maxWidth: anim ? 'min(40vw, 56vh)' : '80vw', maxHeight: onRegenerate ? '56vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
+            />
+            <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
+          </div>
+
+          {anim && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation · {anim.displayName}</span>
+              <AnimationPlayer key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} side={onRegenerate ? '56vh' : '72vh'} />
+            </div>
+          )}
+        </div>
 
         {(onRegenerate || onAnimate) && (
           <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -156,6 +180,58 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
         aria-label="Close"
       >✕</button>
     </div>
+  );
+}
+
+function AnimationPlayer({ anim, side }: { anim: LightboxAnimation; side: string }) {
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(true);
+
+  useEffect(() => {
+    if (!playing || anim.frameCount <= 1) return;
+    const t = setInterval(() => setFrame(f => (f + 1) % anim.frameCount), Math.max(40, 1000 / anim.fps));
+    return () => clearInterval(t);
+  }, [playing, anim.frameCount, anim.fps]);
+
+  const box = `min(40vw, ${side})`;
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: box,
+          height: box,
+          borderRadius: '12px',
+          overflow: 'hidden',
+          background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px',
+          boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)',
+        }}
+      >
+        {Array.from({ length: anim.frameCount }, (_, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={`/api/animations/${anim.clipId}/frames/${i}?v=${encodeURIComponent(anim.updatedAt)}`}
+            alt={`frame ${i + 1}`}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: i === frame ? 1 : 0 }}
+          />
+        ))}
+      </div>
+      <button
+        onClick={() => setPlaying(p => !p)}
+        style={{
+          background: 'rgba(247,244,238,.1)',
+          border: '1px solid rgba(247,244,238,.18)',
+          color: 'var(--canvas)',
+          borderRadius: 'var(--radius-btn)',
+          padding: '7px 16px',
+          font: '600 12px var(--font-body)',
+          cursor: 'pointer',
+        }}
+      >
+        {playing ? '❚❚ Pause' : '▶ Play'}
+      </button>
+    </>
   );
 }
 
