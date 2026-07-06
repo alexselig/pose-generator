@@ -159,6 +159,9 @@ export default function AnimatePage({ params }: { params: Promise<{ id: string }
               </button>
             ))}
             <div style={{ flex: 1 }} />
+            {isGenerated && clip && (
+              <a href={`/api/animations/${clip.id}/export`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Export to Godot</a>
+            )}
             <button onClick={handleGenerate} disabled={generating} style={{ ...primaryButton, opacity: generating ? 0.6 : 1, cursor: generating ? 'default' : 'pointer' }}>
               {generating ? 'Generating…' : clip ? '↻ Regenerate' : '✨ Generate'}
             </button>
