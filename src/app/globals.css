@@ -1,45 +1,76 @@
 @import "tailwindcss";
 
 :root {
-  --bg-app: #100f24;
-  --bg-panel: #1f1d3c;
-  --bg-raised: #252247;
-  --bg-input: #161534;
-  --bg-sidebar: rgba(22,20,48,.55);
-  --border-input: #312d57;
-  --border-hairline: #2e2a54;
-  --border-divider: #262248;
-  --text-primary: #f0eefb;
-  --text-bright: #e6e3f5;
-  --text-dim: #9a96c4;
-  --text-dimmer: #7d79ad;
-  --text-placeholder: #615d8f;
-  --accent-purple: #7b5cff;
-  --accent-blue: #4f8cff;
-  --accent-cyan: #2fd6d6;
-  --accent-solid: #5b4bff;
-  --success: #3ddc97;
-  --success-dark: #45b27d;
-  --danger: #ff7d8a;
-  --danger-dark: #e0645f;
-  --warn: #f3c06a;
-  --warn-dark: #e3a948;
-  --locked: #8fa6ff;
-  --gradient-brand: linear-gradient(120deg, #7b5cff, #4f8cff);
-  --gradient-brand-full: linear-gradient(110deg, #7b5cff 0%, #4f8cff 50%, #2fd6d6 100%);
-  --gradient-header: linear-gradient(110deg, #7b5cff 0%, #4f8cff 50%, #2fd6d6 100%);
-  --gradient-sidebar-brand: linear-gradient(250deg, #8a6dff 0%, #5f93ff 52%, #43d6d6 100%);
-  --shadow-panel: 0 24px 50px -34px rgba(0,0,0,.85);
-  --shadow-btn-glow: 0 12px 28px -10px rgba(91,108,255,.9);
-  --shadow-header: 0 10px 34px -14px rgba(79,140,255,.7);
-  --radius-card: 16px;
+  /* ── "Maison" lux palette — warm ivory canvas + oxblood accent ──
+     Structural var NAMES are kept from the previous theme so existing
+     references keep resolving; only the VALUES change. Maison-semantic
+     aliases (--canvas, --ink, --accent…) are added below for new code. */
+  --bg-app: #F7F4EE;        /* app canvas */
+  --bg-panel: #FFFFFF;      /* cards / panels (surface) */
+  --bg-raised: #F9F6F1;     /* topbar / raised surface */
+  --bg-input: #FBF9F4;      /* inset fields / sidebar */
+  --bg-sidebar: #FBF9F4;
+  --border-input: #DED6C6;  /* input / secondary-button border (field) */
+  --border-hairline: #E9E3D8; /* card / panel border */
+  --border-divider: #E6DFD2;  /* section rules */
+  --text-primary: #1A1714;  /* ink */
+  --text-bright: #2A241E;
+  --text-dim: #8A8071;      /* muted */
+  --text-dimmer: #9A9284;   /* muted-2 */
+  --text-placeholder: #A79E8E;
+  --accent-purple: #7A2E2A; /* oxblood (name retained for compatibility) */
+  --accent-blue: #7A2E2A;
+  --accent-cyan: #B58A2E;   /* gold — sparkle / generate accents */
+  --accent-solid: #7A2E2A;
+  --success: #5E6B3B;
+  --success-dark: #7FB07A;
+  --danger: #8E3A35;
+  --danger-dark: #5E211E;
+  --warn: #B58A2E;
+  --warn-dark: #9A7526;
+  --locked: #8A8071;
+
+  /* Maison semantic aliases (preferred in new/updated code) */
+  --canvas: #F7F4EE;
+  --canvas-raised: #F9F6F1;
+  --sidebar: #FBF9F4;
+  --surface: #FFFFFF;
+  --ink: #1A1714;
+  --ink-2: #4A4238;
+  --muted: #8A8071;
+  --muted-2: #9A9284;
+  --faint: #A79E8E;
+  --accent: #7A2E2A;
+  --accent-hover: #5E211E;
+  --accent-tint: #F4E9E5;
+  --border: #E4DCCE;
+  --border-soft: #E6DFD2;
+  --border-card: #E9E3D8;
+  --border-field: #DED6C6;
+  --border-dashed: #D8CFBF;
+  --gold: #B58A2E;
+  --code-panel-bg: #20242A;
+  --code-text: #CDE3C9;
+  --code-label: #C9C0B0;
+  --overlay: rgba(26,23,20,.82);
+
+  /* Flat ivory — no brand gradients in the Maison language. Kept as vars so
+     legacy `var(--gradient-*)` refs resolve to solid Maison surfaces. */
+  --gradient-brand: var(--accent);
+  --gradient-brand-full: var(--accent);
+  --gradient-header: var(--canvas-raised);
+  --gradient-sidebar-brand: var(--accent);
+  --shadow-panel: 0 18px 40px -24px rgba(90,55,30,.4);
+  --shadow-btn-glow: none;
+  --shadow-header: none;
+  --radius-card: 13px;
   --radius-input: 10px;
-  --radius-btn: 11px;
-  --radius-pill: 20px;
-  --radius-swatch: 8px;
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-body: system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --radius-btn: 9px;
+  --radius-pill: 999px;
+  --radius-swatch: 7px;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -54,15 +85,12 @@ html, body {
 }
 
 body {
-  background:
-    radial-gradient(1100px 560px at 88% -8%, rgba(123,92,255,.22), transparent 60%),
-    radial-gradient(900px 520px at 0% 110%, rgba(47,214,214,.12), transparent 55%),
-    var(--bg-app);
+  background: var(--canvas);
   min-height: 100vh;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #33305c; border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: #D8CFBF; border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 input::placeholder, textarea::placeholder { color: var(--text-placeholder); }
@@ -75,16 +103,49 @@ input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
 @keyframes pf-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 
 .checkerboard {
-  background-image:
-    linear-gradient(45deg, #1a1840 25%, transparent 25%),
-    linear-gradient(-45deg, #1a1840 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1a1840 75%),
-    linear-gradient(-45deg, transparent 75%, #1a1840 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  background: conic-gradient(#EFEAE0 90deg, #F9F6F1 0 180deg, #EFEAE0 0 270deg, #F9F6F1 0) 0 0 / 26px 26px;
 }
 
 .auto-grow { overflow: hidden; resize: none; }
+
+/* Ghost-oxblood "New Character" pill — fills on hover */
+.pf-newchar { transition: background .15s ease, color .15s ease; }
+.pf-newchar:hover { background: var(--accent) !important; color: var(--canvas) !important; }
+
+/* Gallery cards + add-tile */
+.pf-card { transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.pf-card:hover { border-color: #C9AFA6 !important; box-shadow: 0 18px 40px -24px rgba(90,55,30,.4); transform: translateY(-2px); }
+.pf-newtile { transition: border-color .18s ease, color .18s ease; }
+.pf-newtile:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+.pf-newtile:hover > div:first-child { filter: none; }
+
+/* Maison checkbox — oxblood box, ivory check when on */
+.pf-check {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; margin: 0;
+  border: 1.5px solid var(--accent); border-radius: 5px;
+  background: var(--surface); cursor: pointer; flex: none;
+  transition: background .12s ease;
+}
+.pf-check:checked {
+  background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23F7F4EE' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+}
+
+/* Shared Maison buttons — ghost (field border), ghost-accent (oxblood), filled */
+.pf-ghost { transition: border-color .15s ease, color .15s ease; }
+.pf-ghost:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+.pf-ghost-accent { transition: background .15s ease, color .15s ease; }
+.pf-ghost-accent:hover { background: var(--accent) !important; color: var(--canvas) !important; }
+.pf-filled { transition: background .15s ease; }
+.pf-filled:hover { background: var(--accent-hover) !important; border-color: var(--accent-hover) !important; }
+.pf-textaction { transition: color .15s ease; }
+.pf-textaction:hover { color: var(--ink-2) !important; }
+
+/* Pose thumbnail tile hover */
+.pf-posetile { transition: border-color .15s ease; }
+.pf-posetile:hover { border-color: #C9AFA6 !important; }
 
 /* Responsive sidebar drawer (mobile / small tablet) */
 .pf-backdrop { display: none; }
@@ -107,7 +168,7 @@ input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
     position: fixed;
     inset: 0;
     z-index: 55;
-    background: rgba(8, 7, 22, .6);
+    background: rgba(26, 23, 20, .5);
     backdrop-filter: blur(2px);
     opacity: 0;
     pointer-events: none;

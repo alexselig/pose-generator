@@ -154,7 +154,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
     <div style={{ maxWidth: '1040px', margin: '0 auto', padding: '30px 34px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
         <Link href={`/characters/${id}`} style={secondaryButton}>← Back</Link>
-        <h1 style={{ font: '700 20px var(--font-display)', letterSpacing: '-.01em', margin: 0 }}>
+        <h1 style={{ font: '600 24px var(--font-display)', margin: 0, color: 'var(--ink)' }}>
           Animate {character.name}
         </h1>
       </div>
@@ -162,7 +162,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
       <div className="pf-stack" style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
         {/* Preview */}
         <div style={{ flexShrink: 0, width: '360px' }}>
-          <div style={{ position: 'relative', width: '360px', height: '360px', borderRadius: '18px', overflow: 'hidden', background: 'repeating-conic-gradient(#2a2748 0% 25%, #23203f 0% 50%) 50% / 34px 34px', border: '1px solid var(--border-hairline)' }}>
+          <div style={{ position: 'relative', width: '360px', height: '360px', borderRadius: '16px', overflow: 'hidden', background: 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 34px 34px', border: '1px solid var(--border-card)' }}>
             {isGenerated ? (
               frameUrls.map((url, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -186,9 +186,9 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
                 {playing ? '❚❚ Pause' : '▶ Play'}
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                <span style={{ font: '400 11px var(--font-mono)', color: '#9a96c4' }}>fps</span>
-                <input type="range" min={1} max={24} value={fps} onChange={e => setFps(Number(e.target.value))} style={{ flex: 1, accentColor: '#7b5cff' }} />
-                <span style={{ font: '400 11px var(--font-mono)', color: '#e6e3f5', width: '20px' }}>{fps}</span>
+                <span style={{ font: '400 11px var(--font-mono)', color: 'var(--muted)' }}>fps</span>
+                <input type="range" min={1} max={24} value={fps} onChange={e => setFps(Number(e.target.value))} style={{ flex: 1, accentColor: 'var(--accent)' }} />
+                <span style={{ font: '400 11px var(--font-mono)', color: 'var(--ink-2)', width: '20px' }}>{fps}</span>
               </div>
             </div>
           )}
@@ -196,7 +196,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
 
         {/* Controls + filmstrip */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.07em', color: '#7d79ad', marginBottom: '7px' }}>
+          <div style={{ font: '700 10px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: '7px' }}>
             POSE / ACTION{actionList.length ? '' : ' — generate poses first'}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -206,7 +206,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
                 <button
                   key={a}
                   onClick={() => setAction(a)}
-                  style={{ ...chip, ...(action === a ? { background: 'var(--gradient-brand)', color: '#fff', border: 'none' } : {}) }}
+                  style={{ ...chip, ...(action === a ? { background: 'var(--accent)', color: 'var(--canvas)', border: '1px solid var(--accent)' } : {}) }}
                   title={has ? 'Has an animation' : 'Not animated yet'}
                 >
                   {titleCase(a)}{has ? ' ●' : ''}
@@ -225,18 +225,18 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
             </button>
           </div>
 
-          <p style={{ margin: '12px 0 0', color: '#9a96c4', fontSize: '12.5px', lineHeight: 1.5 }}>
-            Animating <b style={{ color: '#e6e3f5' }}>{titleCase(action)}</b> — the model animates from this pose in one filmstrip, then it's sliced into transparent, Godot-ready frames.
+          <p style={{ margin: '12px 0 0', color: 'var(--muted)', fontSize: '12.5px', lineHeight: 1.5 }}>
+            Animating <b style={{ color: 'var(--ink)' }}>{titleCase(action)}</b> — the model animates from this pose in one filmstrip, then it's sliced into transparent, Godot-ready frames.
           </p>
 
           {isGenerated && (
             <>
-              <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.07em', color: '#7d79ad', margin: '26px 0 10px' }}>
+              <div style={{ font: '700 10px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--faint)', margin: '26px 0 10px' }}>
                 FRAMES · {clip?.frameCount}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: '8px' }}>
                 {frameUrls.map((url, i) => (
-                  <div key={url} style={{ borderRadius: '10px', padding: '4px', background: 'repeating-conic-gradient(#2a2748 0% 25%, #23203f 0% 50%) 50% / 16px 16px', border: i === frameIndex ? '1px solid #7b5cff' : '1px solid var(--border-hairline)' }}>
+                  <div key={url} style={{ borderRadius: '10px', padding: '4px', background: 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 16px 16px', border: i === frameIndex ? '1px solid var(--accent)' : '1px solid var(--border-card)' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt={`frame ${i + 1}`} style={{ width: '100%', height: '72px', objectFit: 'contain', display: 'block' }} />
                   </div>
@@ -251,12 +251,12 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
 }
 
 const secondaryButton: React.CSSProperties = {
-  background: 'var(--bg-raised)',
-  color: 'var(--text-bright)',
-  border: '1px solid #353160',
+  background: 'transparent',
+  color: 'var(--ink-2)',
+  border: '1px solid var(--border-field)',
   borderRadius: 'var(--radius-btn)',
   padding: '9px 16px',
-  font: '600 12px var(--font-display)',
+  font: '600 13px var(--font-body)',
   cursor: 'pointer',
   textDecoration: 'none',
   display: 'inline-flex',
@@ -264,21 +264,20 @@ const secondaryButton: React.CSSProperties = {
 };
 
 const chip: React.CSSProperties = {
-  background: 'var(--bg-raised)',
-  color: 'var(--text-bright)',
-  border: '1px solid #353160',
+  background: 'var(--surface)',
+  color: 'var(--ink-2)',
+  border: '1px solid var(--border-field)',
   borderRadius: '999px',
   padding: '7px 14px',
-  font: '600 12px var(--font-display)',
+  font: '600 12px var(--font-body)',
   cursor: 'pointer',
 };
 
 const primaryButton: React.CSSProperties = {
-  background: 'var(--gradient-brand)',
-  color: '#fff',
-  border: 'none',
+  background: 'var(--accent)',
+  color: 'var(--canvas)',
+  border: '1px solid var(--accent)',
   borderRadius: 'var(--radius-btn)',
   padding: '9px 18px',
-  font: '700 12px var(--font-display)',
-  boxShadow: 'var(--shadow-btn-glow)',
+  font: '600 13px var(--font-body)',
 };

@@ -46,7 +46,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(10,9,26,.92)',
+        background: 'var(--overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -63,27 +63,26 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
 
       <div onClick={e => e.stopPropagation()} style={{ maxWidth: '80vw', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
         {images.length > 1 && (
-          <span style={{ font: '400 12px var(--font-mono)', color: '#9a96c4' }}>{index + 1} / {images.length}</span>
+          <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(247,244,238,.6)' }}>{index + 1} / {images.length}</span>
         )}
         <img
           src={img.src}
           alt={img.alt}
           style={{ maxWidth: '80vw', maxHeight: onRegenerate ? '58vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
         />
-        <span style={{ font: '600 14px var(--font-display)', color: '#e6e3f5' }}>{img.alt}</span>
+        <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
 
         {onAnimate && (
           <button
             onClick={() => onAnimate(index)}
             style={{
-              background: 'var(--gradient-brand)',
-              color: '#fff',
-              border: 'none',
+              background: 'var(--accent)',
+              color: 'var(--canvas)',
+              border: '1px solid var(--accent)',
               borderRadius: 'var(--radius-btn)',
-              padding: '9px 18px',
-              font: '700 13px var(--font-display)',
+              padding: '10px 18px',
+              font: '600 13px var(--font-body)',
               cursor: 'pointer',
-              boxShadow: '0 8px 20px -10px rgba(91,108,255,.9)',
             }}
           >
             ✨ + Animation
@@ -106,12 +105,12 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
               placeholder="Describe changes for regeneration…"
               style={{
                 width: '100%',
-                background: 'rgba(22,21,52,.9)',
-                border: '1px solid #312d57',
-                borderRadius: '10px',
-                color: '#f0eefb',
+                background: 'var(--surface)',
+                border: '1px solid var(--border-field)',
+                borderRadius: 'var(--radius-input)',
+                color: 'var(--ink)',
                 padding: '10px 12px',
-                font: '13px/1.5 system-ui',
+                font: '13px/1.5 var(--font-body)',
                 outline: 'none',
                 resize: 'none',
               }}
@@ -121,14 +120,13 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
               disabled={regenerating}
               style={{
                 alignSelf: 'flex-end',
-                background: regenerating ? '#252247' : 'var(--gradient-brand)',
-                color: regenerating ? '#9a96c4' : '#fff',
-                border: 'none',
+                background: regenerating ? 'rgba(247,244,238,.15)' : 'var(--accent)',
+                color: regenerating ? 'rgba(247,244,238,.6)' : 'var(--canvas)',
+                border: '1px solid transparent',
                 borderRadius: 'var(--radius-btn)',
-                padding: '9px 18px',
-                font: '600 13px var(--font-display)',
+                padding: '10px 18px',
+                font: '600 13px var(--font-body)',
                 cursor: regenerating ? 'wait' : 'pointer',
-                boxShadow: regenerating ? 'none' : '0 8px 20px -10px rgba(91,108,255,.9)',
               }}
             >
               {regenerating ? 'Generating…' : '↻ Regenerate'}
@@ -147,7 +145,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
 
       <button
         onClick={onClose}
-        style={{ position: 'absolute', top: '20px', right: '24px', background: 'none', border: 'none', color: '#9a96c4', fontSize: '28px', cursor: 'pointer', lineHeight: 1 }}
+        style={{ position: 'absolute', top: '20px', right: '24px', background: 'none', border: 'none', color: 'rgba(247,244,238,.65)', fontSize: '28px', cursor: 'pointer', lineHeight: 1 }}
         aria-label="Close"
       >✕</button>
     </div>
@@ -160,15 +158,15 @@ function navBtn(side: 'left' | 'right'): React.CSSProperties {
     [side]: '20px',
     top: '50%',
     transform: 'translateY(-50%)',
-    background: 'rgba(255,255,255,.08)',
-    border: '1px solid rgba(255,255,255,.12)',
+    background: 'rgba(247,244,238,.1)',
+    border: '1px solid rgba(247,244,238,.18)',
     borderRadius: '50%',
     width: '48px',
     height: '48px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#e6e3f5',
+    color: 'var(--canvas)',
     fontSize: '28px',
     cursor: 'pointer',
     backdropFilter: 'blur(4px)',
