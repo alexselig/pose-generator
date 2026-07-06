@@ -62,6 +62,18 @@ export function saveAnimationFrame(characterName: string, action: string, index:
   return filePath;
 }
 
+// Remove any existing frame_NN.png before a (re)generation. The model draws a
+// variable frame count, so a shorter re-gen would otherwise leave orphaned tail
+// frames on disk that the frame route could still serve (they're cached
+// immutably). Clearing first keeps the on-disk set == the clip's real frames.
+export function clearAnimationFrames(characterName: string, action: string): void {
+  const dir = frameDir(characterName, action);
+  if (!fs.existsSync(dir)) return;
+  for (const f of fs.readdirSync(dir)) {
+    if (/^frame_\d+\.png$/.test(f)) fs.rmSync(path.join(dir, f));
+  }
+}
+
 export function readAnimationFrame(characterName: string, action: string, index: number): Buffer | null {
   const filePath = path.join(frameDir(characterName, action), frameFileName(index));
   if (!fs.existsSync(filePath)) return null;

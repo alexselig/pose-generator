@@ -4,6 +4,7 @@ import {
   getAnimationClip,
   saveAnimationClip,
   saveAnimationFrame,
+  clearAnimationFrames,
   sliceFilmstrip,
 } from '@/lib/animations';
 import { generateAnimationFilmstrip } from '@/lib/gemini';
@@ -49,6 +50,9 @@ export async function POST(
     const strip = await generateAnimationFilmstrip(character, spec, reference);
     const frameBuffers = await sliceFilmstrip(strip, clip.canvasWidth, clip.canvasHeight, clip.frameCount);
 
+    // Drop any frames from a previous (possibly longer) generation so the on-disk
+    // set matches this clip exactly — no orphaned tail frames left behind.
+    clearAnimationFrames(character.name, clip.action);
     clip.frames = frameBuffers.map((buf, i) => {
       const imagePath = saveAnimationFrame(character.name, clip.action, i, buf);
       return { index: i, imagePath, status: 'generated' as const };

@@ -19,6 +19,13 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid frame index' }, { status: 400 });
   }
 
+  // Only serve frames the clip actually declares. Guards against orphaned frame
+  // files from an earlier, longer generation being served for an out-of-range
+  // index (they'd otherwise be cached immutably).
+  if (i >= clip.frames.length) {
+    return NextResponse.json({ error: 'Frame not found' }, { status: 404 });
+  }
+
   const buffer = readAnimationFrame(clip.characterName, clip.action, i);
   if (!buffer) {
     return NextResponse.json({ error: 'Frame not found' }, { status: 404 });
