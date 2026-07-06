@@ -40,7 +40,7 @@ export default function CharacterDetailPage({
 
     reloadImages();
 
-    fetch(`/api/characters/${id}/pose-sets/latest`)
+    fetch(`/api/characters/${id}/pose-sets/latest?slim=1`)
       .then(res => res.ok ? res.json() : null)
       .then(data => setPoseSet(data))
       .catch(() => setPoseSet(null));
