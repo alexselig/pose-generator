@@ -183,29 +183,59 @@ export async function sliceFilmstrip(
     comps.push({ area, minx, maxx, miny, maxy });
   }
 
-  // Keep significant components (drop specks); merge ones that x-overlap > 40% of
-  // the smaller into a single figure.
+  // Keep significant components (drop specks).
   const minArea = Math.round(npx * 0.0004);
-  const bigComps = comps.filter(c => c.area >= minArea).sort((a, b) => a.minx - b.minx);
-  const boxes: Array<{ left: number; top: number; width: number; height: number }> = [];
-  for (const c of bigComps) {
-    const cw = c.maxx - c.minx + 1;
-    let merged = false;
-    for (const f of boxes) {
-      const overlap = Math.min(c.maxx, f.left + f.width - 1) - Math.max(c.minx, f.left) + 1;
-      if (overlap > 0.4 * Math.min(cw, f.width)) {
-        const nx0 = Math.min(f.left, c.minx);
-        const nx1 = Math.max(f.left + f.width - 1, c.maxx);
-        const ny0 = Math.min(f.top, c.miny);
-        const ny1 = Math.max(f.top + f.height - 1, c.maxy);
-        f.left = nx0; f.width = nx1 - nx0 + 1; f.top = ny0; f.height = ny1 - ny0 + 1;
-        merged = true;
+  const bigComps = comps.filter(c => c.area >= minArea);
+
+  // Group components into ROWS. gemini-2.5-flash-image frequently lays the frames
+  // out as a GRID (e.g. 4x2) inside a ~square image instead of the requested single
+  // row, so we must NOT merge vertically-stacked figures — doing so produced frames
+  // that each contained two characters. Two components share a row when their
+  // vertical spans overlap by more than half of the shorter span.
+  const rows: Array<{ miny: number; maxy: number; comps: typeof comps }> = [];
+  for (const c of [...bigComps].sort((a, b) => (a.miny + a.maxy) - (b.miny + b.maxy))) {
+    const ch = c.maxy - c.miny + 1;
+    let placed = false;
+    for (const row of rows) {
+      const ov = Math.min(c.maxy, row.maxy) - Math.max(c.miny, row.miny) + 1;
+      if (ov > 0.5 * Math.min(ch, row.maxy - row.miny + 1)) {
+        row.comps.push(c);
+        row.miny = Math.min(row.miny, c.miny);
+        row.maxy = Math.max(row.maxy, c.maxy);
+        placed = true;
         break;
       }
     }
-    if (!merged) boxes.push({ left: c.minx, top: c.miny, width: cw, height: c.maxy - c.miny + 1 });
+    if (!placed) rows.push({ miny: c.miny, maxy: c.maxy, comps: [c] });
   }
-  boxes.sort((a, b) => a.left - b.left);
+  rows.sort((a, b) => a.miny - b.miny);
+
+  // Within each row: left→right, merging components that x-overlap > 40% of the
+  // smaller (a single figure's detached parts, e.g. a raised arm or a held item).
+  // Frames then read in grid order — each row left→right, rows top→bottom.
+  const boxes: Array<{ left: number; top: number; width: number; height: number }> = [];
+  for (const row of rows) {
+    const rowBoxes: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const c of row.comps.sort((a, b) => a.minx - b.minx)) {
+      const cw = c.maxx - c.minx + 1;
+      let merged = false;
+      for (const f of rowBoxes) {
+        const overlap = Math.min(c.maxx, f.left + f.width - 1) - Math.max(c.minx, f.left) + 1;
+        if (overlap > 0.4 * Math.min(cw, f.width)) {
+          const nx0 = Math.min(f.left, c.minx);
+          const nx1 = Math.max(f.left + f.width - 1, c.maxx);
+          const ny0 = Math.min(f.top, c.miny);
+          const ny1 = Math.max(f.top + f.height - 1, c.maxy);
+          f.left = nx0; f.width = nx1 - nx0 + 1; f.top = ny0; f.height = ny1 - ny0 + 1;
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) rowBoxes.push({ left: c.minx, top: c.miny, width: cw, height: c.maxy - c.miny + 1 });
+    }
+    rowBoxes.sort((a, b) => a.left - b.left);
+    boxes.push(...rowBoxes);
+  }
 
   // Fallback: if nothing usable was found, even-split by the expected count.
   if (boxes.length === 0) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, use, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Character, AnimationClip } from '@/lib/types';
@@ -28,7 +28,6 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   const { showToast } = useToast();
 
   const queryAction = (search.get('action') || '').toLowerCase();
-  const autoGen = search.get('generate') === '1';
 
   const [character, setCharacter] = useState<Character | null>(null);
   const [clips, setClips] = useState<AnimationClip[]>([]);
@@ -39,8 +38,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   const [playing, setPlaying] = useState(true);
   const [fps, setFps] = useState(12);
   const [frameIndex, setFrameIndex] = useState(0);
-  const [clipsLoaded, setClipsLoaded] = useState(false);
-  const autoGenFired = useRef(false);
+  const [prompt, setPrompt] = useState('');
 
   useEffect(() => {
     fetch(`/api/characters/${id}`)
@@ -51,8 +49,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
     fetch(`/api/characters/${id}/animations`)
       .then(res => (res.ok ? res.json() : []))
       .then((data: AnimationClip[]) => setClips(data))
-      .catch(() => setClips([]))
-      .finally(() => setClipsLoaded(true));
+      .catch(() => setClips([]));
 
     // Derive the animatable actions from the character's existing poses.
     fetch(`/api/characters/${id}/images`)
@@ -81,7 +78,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
 
   const isGenerated = clip?.status === 'generated' && clip.frameCount > 0;
 
-  const generate = async (targetAction: string) => {
+  const generate = async (targetAction: string, userPrompt?: string) => {
     setGenerating(true);
     try {
       let target = clips.find(c => c.action === targetAction);
@@ -94,7 +91,11 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
         if (!createRes.ok) throw new Error('create failed');
         target = await createRes.json();
       }
-      const genRes = await fetch(`/api/animations/${target!.id}/generate`, { method: 'POST' });
+      const genRes = await fetch(`/api/animations/${target!.id}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: userPrompt?.trim() || undefined }),
+      });
       if (!genRes.ok) {
         const body = await genRes.json().catch(() => ({}));
         throw new Error(body.error || 'generation failed');
@@ -111,17 +112,6 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
       setGenerating(false);
     }
   };
-
-  // Auto-start generation once when arriving from a pose's "+ Animation" button.
-  // Wait for existing clips to load so we don't regenerate one that already exists.
-  useEffect(() => {
-    if (!autoGen || autoGenFired.current || !character || !clipsLoaded || !action) return;
-    autoGenFired.current = true;
-    const existing = clips.find(c => c.action === action);
-    if (existing && existing.status === 'generated') return;
-    void generate(action);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoGen, character, clipsLoaded, clips, action]);
 
   // Loop the frames while playing.
   useEffect(() => {
@@ -215,12 +205,41 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
             })}
           </div>
 
+          <div style={{ marginTop: '18px' }}>
+            <div style={{ font: '700 10px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: '7px' }}>
+              PROMPT · OPTIONAL
+            </div>
+            <textarea
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!generating && action) void generate(action, prompt);
+                }
+              }}
+              rows={2}
+              placeholder="Describe how it should move or look — e.g. “bouncy exaggerated stride, cape flowing”. Leave blank for the default motion."
+              style={{
+                width: '100%',
+                background: 'var(--surface)',
+                border: '1px solid var(--border-field)',
+                borderRadius: 'var(--radius-input)',
+                color: 'var(--ink)',
+                padding: '10px 12px',
+                font: '13px/1.5 var(--font-body)',
+                outline: 'none',
+                resize: 'none',
+              }}
+            />
+          </div>
+
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '16px' }}>
             <div style={{ flex: 1 }} />
             {isGenerated && clip && (
               <a href={`/api/animations/${clip.id}/export`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Export to Godot</a>
             )}
-            <button onClick={() => generate(action)} disabled={generating || !action} style={{ ...primaryButton, opacity: generating || !action ? 0.6 : 1, cursor: generating ? 'default' : 'pointer' }}>
+            <button onClick={() => generate(action, prompt)} disabled={generating || !action} style={{ ...primaryButton, opacity: generating || !action ? 0.6 : 1, cursor: generating ? 'default' : 'pointer' }}>
               {generating ? 'Generating…' : clip ? '↻ Regenerate' : '✨ Generate'}
             </button>
           </div>

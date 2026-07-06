@@ -99,7 +99,7 @@ export default function CharacterDetailPage({
     const base = image.name.replace(/\.png$/, '');
     const action = base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
     lightbox.close();
-    router.push(`/animate/${id}?action=${encodeURIComponent(action)}&generate=1`);
+    router.push(`/animate/${id}?action=${encodeURIComponent(action)}`);
   };
 
   const handleSave = async () => {

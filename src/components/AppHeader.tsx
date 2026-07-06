@@ -70,13 +70,7 @@ export function AppHeader() {
           <span style={{ width: '15px', height: '2px', background: 'var(--ink)', borderRadius: '2px' }} />
         </button>
 
-        {/* Wordmark — always present */}
-        <Link href="/characters" className="no-underline" style={{ font: '700 28px var(--font-display)', color: 'var(--ink)', letterSpacing: '-.01em', whiteSpace: 'nowrap' }}>
-          PoseForge
-        </Link>
-
-        {/* Divider + page-title status */}
-        <span style={{ width: '1px', height: '24px', background: 'var(--border-field)', flexShrink: 0 }} />
+        {/* Page-title status */}
         <div className="flex items-center gap-[9px] min-w-0">
           {isCharView && (
             <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />

@@ -72,65 +72,72 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
         />
         <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
 
-        {onAnimate && (
-          <button
-            onClick={() => onAnimate(index)}
-            style={{
-              background: 'var(--accent)',
-              color: 'var(--canvas)',
-              border: '1px solid var(--accent)',
-              borderRadius: 'var(--radius-btn)',
-              padding: '10px 18px',
-              font: '600 13px var(--font-body)',
-              cursor: 'pointer',
-            }}
-          >
-            ✨ + Animation
-          </button>
-        )}
+        {(onRegenerate || onAnimate) && (
+          <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {onRegenerate && (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
+                <textarea
+                  ref={promptRef}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void onRegenerate(index, prompt);
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Describe changes for regeneration…"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-field)',
+                    borderRadius: 'var(--radius-input)',
+                    color: 'var(--ink)',
+                    padding: '10px 12px',
+                    font: '13px/1.5 var(--font-body)',
+                    outline: 'none',
+                    resize: 'none',
+                  }}
+                />
+                <button
+                  onClick={() => void onRegenerate(index, prompt)}
+                  disabled={regenerating}
+                  style={{
+                    flexShrink: 0,
+                    background: regenerating ? 'rgba(247,244,238,.15)' : 'var(--accent)',
+                    color: regenerating ? 'rgba(247,244,238,.6)' : 'var(--canvas)',
+                    border: '1px solid transparent',
+                    borderRadius: 'var(--radius-btn)',
+                    padding: '10px 18px',
+                    font: '600 13px var(--font-body)',
+                    cursor: regenerating ? 'wait' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {regenerating ? 'Generating…' : '↻ Regenerate'}
+                </button>
+              </div>
+            )}
 
-        {onRegenerate && (
-          <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <textarea
-              ref={promptRef}
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void onRegenerate(index, prompt);
-                }
-              }}
-              rows={2}
-              placeholder="Describe changes for regeneration…"
-              style={{
-                width: '100%',
-                background: 'var(--surface)',
-                border: '1px solid var(--border-field)',
-                borderRadius: 'var(--radius-input)',
-                color: 'var(--ink)',
-                padding: '10px 12px',
-                font: '13px/1.5 var(--font-body)',
-                outline: 'none',
-                resize: 'none',
-              }}
-            />
-            <button
-              onClick={() => void onRegenerate(index, prompt)}
-              disabled={regenerating}
-              style={{
-                alignSelf: 'flex-end',
-                background: regenerating ? 'rgba(247,244,238,.15)' : 'var(--accent)',
-                color: regenerating ? 'rgba(247,244,238,.6)' : 'var(--canvas)',
-                border: '1px solid transparent',
-                borderRadius: 'var(--radius-btn)',
-                padding: '10px 18px',
-                font: '600 13px var(--font-body)',
-                cursor: regenerating ? 'wait' : 'pointer',
-              }}
-            >
-              {regenerating ? 'Generating…' : '↻ Regenerate'}
-            </button>
+            {onAnimate && (
+              <button
+                onClick={() => onAnimate(index)}
+                style={{
+                  alignSelf: 'flex-start',
+                  background: 'var(--accent)',
+                  color: 'var(--canvas)',
+                  border: '1px solid var(--accent)',
+                  borderRadius: 'var(--radius-btn)',
+                  padding: '10px 18px',
+                  font: '600 13px var(--font-body)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ marginRight: '8px' }}>+</span>Animation
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -18,11 +18,14 @@ export const maxDuration = 120;
 // into frame PNGs on disk. On failure the clip is marked 'failed' so the UI can
 // offer a retry instead of spinning forever.
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   try {
+    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const userPrompt =
+      typeof body?.prompt === 'string' && body.prompt.trim() ? body.prompt.trim() : undefined;
     const clip = getAnimationClip(id);
     if (!clip) {
       return NextResponse.json({ error: 'Animation clip not found' }, { status: 404 });
@@ -47,7 +50,7 @@ export async function POST(
       getPoseImage(character.id, 'reference_0') ||
       (character.referenceImages.length > 0 ? character.referenceImages[0] : undefined);
 
-    const strip = await generateAnimationFilmstrip(character, spec, reference);
+    const strip = await generateAnimationFilmstrip(character, spec, reference, userPrompt);
     const frameBuffers = await sliceFilmstrip(strip, clip.canvasWidth, clip.canvasHeight, clip.frameCount);
 
     // Drop any frames from a previous (possibly longer) generation so the on-disk

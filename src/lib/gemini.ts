@@ -205,7 +205,8 @@ Generate ONLY the character in this pose with a transparent/empty background. No
 export async function generateAnimationFilmstrip(
   character: Character,
   spec: AnimationSpec,
-  referenceImageBase64?: string
+  referenceImageBase64?: string,
+  userPrompt?: string
 ): Promise<string> {
   const client = getClient();
   const n = spec.frameCount;
@@ -233,7 +234,7 @@ DIRECTION LOCK (CRITICAL — this is what makes it read as motion instead of tur
 
 MOTION (what changes across the ${n} frames, left to right): ${spec.motion}
 Spread this motion evenly across the ${n} frames so it ${spec.loop ? 'loops smoothly back to the first frame' : 'plays once from start to finish'}.
-
+${userPrompt ? `\nADDITIONAL DIRECTION (honor this, but keep every lock above — identical facing, identical character scale, same ground line, exactly ${n} frames in one horizontal row): ${userPrompt}\n` : ''}
 FILMSTRIP LAYOUT (CRITICAL):
 - ONE wide image, ${n} frames in a single horizontal row, left to right, each frame the same width (overall aspect ratio about ${n}:1).
 - Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, or text — just the ${n} character drawings evenly spaced.

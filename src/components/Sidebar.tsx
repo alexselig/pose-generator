@@ -78,6 +78,20 @@ export function Sidebar() {
           gap: '22px',
         }}
       >
+      {/* Brand wordmark */}
+      <Link
+        href="/characters"
+        className="no-underline flex-none"
+        style={{
+          font: '700 26px var(--font-display)',
+          color: 'var(--ink)',
+          letterSpacing: '-.01em',
+          lineHeight: 1,
+        }}
+      >
+        PoseForge
+      </Link>
+
       {/* Gallery row */}
       <Link
         href="/characters"
