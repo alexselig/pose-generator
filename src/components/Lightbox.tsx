@@ -1,11 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface LightboxImage {
   src: string;
   alt: string;
 }
+
+// The on-screen media size. The static pose image, the animation player, and the
+// "no animation yet" placeholder all render at this exact box so toggling between
+// Static and Animation never changes the layout size. Poses and animation frames
+// are both square, so a single square box matches all three.
+const MEDIA_BOX = 'min(74vw, 52vh)';
 
 export interface LightboxAnimation {
   clipId: string;
@@ -30,6 +36,25 @@ interface LightboxProps {
 export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [view, setView] = useState<'static' | 'animation'>('static');
+
+  // Track the rendered width of whichever media element is on screen (static
+  // pose image, animation player, or the "no animation yet" placeholder) so the
+  // prompt row below can be sized to exactly match the image above it.
+  const [mediaWidth, setMediaWidth] = useState<number | null>(null);
+  const mediaObserver = useRef<ResizeObserver | null>(null);
+  const measureRef = useCallback((el: HTMLElement | null) => {
+    mediaObserver.current?.disconnect();
+    mediaObserver.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setMediaWidth(w);
+    });
+    ro.observe(el);
+    mediaObserver.current = ro;
+    setMediaWidth(el.clientWidth);
+  }, []);
+  useEffect(() => () => mediaObserver.current?.disconnect(), []);
 
   const prev = useCallback(() => setIndex(i => (i - 1 + images.length) % images.length), [images.length]);
   const next = useCallback(() => setIndex(i => (i + 1) % images.length), [images.length]);
@@ -89,11 +114,11 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
 
         {showingAnimation ? (
           anim ? (
-            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} />
+            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
-              <div style={{ position: 'relative', width: 'min(74vw, 46vh)', height: 'min(74vw, 46vh)', borderRadius: '12px', overflow: 'hidden', border: '1.5px dashed rgba(247,244,238,.28)', background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px' }}>
+              <div ref={measureRef} style={{ position: 'relative', width: MEDIA_BOX, height: MEDIA_BOX, borderRadius: '12px', overflow: 'hidden', border: '1.5px dashed rgba(247,244,238,.28)', background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.src} alt={img.alt} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: animGenerating ? 0.3 : 0.5 }} />
                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '12px' }}>
@@ -111,9 +136,10 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              ref={measureRef}
               src={img.src}
               alt={img.alt}
-              style={{ maxWidth: canAnimate ? 'min(74vw, 52vh)' : '80vw', maxHeight: canAnimate ? '52vh' : (onRegenerate ? '58vh' : '72vh'), objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
+              style={{ maxWidth: canAnimate ? MEDIA_BOX : '80vw', maxHeight: canAnimate ? '52vh' : (onRegenerate ? '58vh' : '72vh'), objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
             />
             <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
           </div>
@@ -122,6 +148,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
         {promptEnabled && (
           <PromptBox
             key={`${showingAnimation ? 'anim' : 'pose'}:${index}`}
+            width={mediaWidth}
             defaultValue={showingAnimation ? (animationPromptFor?.(index) ?? '') : ''}
             placeholder={showingAnimation ? 'Describe the animation — pre-filled, edit to taste…' : 'Describe changes for regeneration…'}
             busy={busy}
@@ -147,7 +174,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
   );
 }
 
-function AnimationView({ anim }: { anim: LightboxAnimation }) {
+function AnimationView({ anim, measureRef }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void }) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
 
@@ -158,13 +185,13 @@ function AnimationView({ anim }: { anim: LightboxAnimation }) {
   }, [playing, anim.frameCount, anim.fps]);
 
   const url = (i: number) => `/api/animations/${anim.clipId}/frames/${i}?v=${encodeURIComponent(anim.updatedAt)}`;
-  const box = 'min(74vw, 46vh)';
+  const box = MEDIA_BOX;
   const checker = 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
       <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation · {anim.displayName}</span>
-      <div style={{ position: 'relative', width: box, height: box, borderRadius: '12px', overflow: 'hidden', background: checker, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}>
+      <div ref={measureRef} style={{ position: 'relative', width: box, height: box, borderRadius: '12px', overflow: 'hidden', background: checker, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}>
         {Array.from({ length: anim.frameCount }, (_, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={i} src={url(i)} alt={`frame ${i + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: i === frame ? 1 : 0 }} />
@@ -194,16 +221,17 @@ function AnimationView({ anim }: { anim: LightboxAnimation }) {
   );
 }
 
-function PromptBox({ defaultValue, placeholder, busy, buttonLabel, onSubmit }: {
+function PromptBox({ defaultValue, placeholder, busy, buttonLabel, onSubmit, width }: {
   defaultValue: string;
   placeholder: string;
   busy: boolean;
   buttonLabel: string;
   onSubmit: (value: string) => void;
+  width?: number | null;
 }) {
   const [value, setValue] = useState(defaultValue);
   return (
-    <div style={{ width: '100%', maxWidth: '640px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
+    <div style={{ width: width ? `${width}px` : '100%', maxWidth: width ? 'none' : '640px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
       <textarea
         value={value}
         onChange={e => setValue(e.target.value)}
