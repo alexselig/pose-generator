@@ -115,9 +115,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
         {canAnimate && (
           <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(247,244,238,.08)', border: '1px solid rgba(247,244,238,.14)', borderRadius: '999px' }}>
             <button onClick={() => setView('static')} style={segBtn(!showingAnimation)}>Static pose</button>
-            <button onClick={() => setView('animation')} style={segBtn(showingAnimation)}>
-              Animation{anim ? ' ●' : ''}
-            </button>
+            <button onClick={() => setView('animation')} style={segBtn(showingAnimation)}>Animation</button>
           </div>
         )}
 
