@@ -157,72 +157,77 @@ export default function NewCharacterWizard() {
   const handleGeneratePoses = async () => {
     setStep(4);
     setError(null);
-    // Create the character first
-    const charRes = await fetch('/api/characters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...draft, referenceImages: imageBase64 ? [imageBase64] : [] }),
-    });
-    if (!charRes.ok) {
-      const err = await charRes.json().catch(() => ({ error: 'Failed to create character' }));
-      setError(err.error || 'Failed to create character');
-      return;
-    }
-    const character = await charRes.json();
-    sessionStorage.setItem('pf_new_char_id', character.id);
-
-    // Create pose set — use customPoses if customizing, otherwise use preset
-    const generateBody = customizing
-      ? {
-          characterId: character.id,
-          customPoses: customPoses.map(p => ({
-            name: p.name,
-            displayName: p.displayName,
-            description: p.displayName,
-            useCase: p.useCase,
-          })),
-        }
-      : { characterId: character.id, presetId: selectedPreset };
-
-    const setRes = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(generateBody),
-    });
-    if (!setRes.ok) {
-      const err = await setRes.json().catch(() => ({ error: 'Failed to create pose set' }));
-      setError(err.error || 'Failed to create pose set');
-      return;
-    }
-    const poseSet = await setRes.json();
-    sessionStorage.setItem('pf_new_poseset_id', poseSet.id);
-    setPoses(prev => prev.map((p, i) => ({
-      ...p,
-      id: poseSet.poses[i]?.id || p.id,
-    })));
-
-    // Generate each pose sequentially
-    for (let i = 0; i < poseSet.poses.length; i++) {
-      setGeneratingIdx(i);
-      try {
-        const genRes = await fetch('/api/generate', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ poseSetId: poseSet.id, poseId: poseSet.poses[i].id }),
-        });
-        if (genRes.ok) {
-          const result = await genRes.json();
-          const poseName = poseSet.poses[i].name;
-          setPoses(prev => prev.map((p, j) => j === i ? { ...p, status: 'generated' } : p));
-          if (result.imageData) {
-            setPoseImages(prev => ({ ...prev, [poseName]: result.imageData }));
-          }
-        }
-      } catch (err) {
-        console.error(`Failed to generate pose ${i}:`, err);
+    try {
+      // Create the character first
+      const charRes = await fetch('/api/characters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...draft, referenceImages: imageBase64 ? [imageBase64] : [] }),
+      });
+      if (!charRes.ok) {
+        const err = await charRes.json().catch(() => ({ error: 'Failed to create character' }));
+        setError(err.error || 'Failed to create character');
+        return;
       }
+      const character = await charRes.json();
+      sessionStorage.setItem('pf_new_char_id', character.id);
+
+      // Create pose set — use customPoses if customizing, otherwise use preset
+      const generateBody = customizing
+        ? {
+            characterId: character.id,
+            customPoses: customPoses.map(p => ({
+              name: p.name,
+              displayName: p.displayName,
+              description: p.displayName,
+              useCase: p.useCase,
+            })),
+          }
+        : { characterId: character.id, presetId: selectedPreset };
+
+      const setRes = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generateBody),
+      });
+      if (!setRes.ok) {
+        const err = await setRes.json().catch(() => ({ error: 'Failed to create pose set' }));
+        setError(err.error || 'Failed to create pose set');
+        return;
+      }
+      const poseSet = await setRes.json();
+      sessionStorage.setItem('pf_new_poseset_id', poseSet.id);
+      setPoses(prev => prev.map((p, i) => ({
+        ...p,
+        id: poseSet.poses[i]?.id || p.id,
+      })));
+
+      // Generate each pose sequentially
+      for (let i = 0; i < poseSet.poses.length; i++) {
+        setGeneratingIdx(i);
+        try {
+          const genRes = await fetch('/api/generate', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ poseSetId: poseSet.id, poseId: poseSet.poses[i].id }),
+          });
+          if (genRes.ok) {
+            const result = await genRes.json();
+            const poseName = poseSet.poses[i].name;
+            setPoses(prev => prev.map((p, j) => j === i ? { ...p, status: 'generated' } : p));
+            if (result.imageData) {
+              setPoseImages(prev => ({ ...prev, [poseName]: result.imageData }));
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to generate pose ${i}:`, err);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate poses');
+    } finally {
+      setGeneratingIdx(-1);
     }
-    setGeneratingIdx(-1);
   };
 
   const handleRedoPose = async (poseIndex: number) => {
@@ -292,7 +297,11 @@ export default function NewCharacterWizard() {
     const charId = sessionStorage.getItem('pf_new_char_id');
     const poseSetId = sessionStorage.getItem('pf_new_poseset_id');
     if (poseSetId) {
-      await fetch(`/api/pose-sets/${poseSetId}/finalize`, { method: 'POST' });
+      try {
+        await fetch(`/api/pose-sets/${poseSetId}/finalize`, { method: 'POST' });
+      } catch {
+        // Navigate to the character even if finalize fails.
+      }
     }
     router.push(charId ? `/characters/${charId}` : '/characters');
   };
