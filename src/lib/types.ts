@@ -277,3 +277,11 @@ export function getAnimationSpec(action: string, displayName?: string): Animatio
     motion: def.motion,
   };
 }
+
+// The default, human-readable animation description for an action, used to
+// pre-fill the (editable) prompt box so users get a good animation by default
+// without having to write a prompt themselves.
+export function getAnimationPrompt(action: string): string {
+  const key = action.toLowerCase().trim();
+  return (ANIMATION_MOTIONS[key] || DEFAULT_MOTION).motion;
+}

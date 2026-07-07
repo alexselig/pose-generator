@@ -210,6 +210,9 @@ export async function generateAnimationFilmstrip(
 ): Promise<string> {
   const client = getClient();
   const n = spec.frameCount;
+  // The (pre-filled, user-editable) prompt IS the motion description; fall back to
+  // the action's curated default motion when the user cleared it.
+  const motion = userPrompt && userPrompt.trim() ? userPrompt.trim() : spec.motion;
   const perspective: PresetPerspective = spec.perspective ?? 'side';
   const topDown = perspective === 'top_down';
 
@@ -232,9 +235,9 @@ DIRECTION LOCK (CRITICAL — this is what makes it read as motion instead of tur
 - The character NEVER turns around, NEVER flips to face the other way, NEVER rotates to face the viewer/camera, and is NEVER mirrored. Keep the identical facing in all ${n} frames.
 - ONLY the limbs and body move through the motion below. The overall body orientation, scale, and ground line stay identical in every frame.
 
-MOTION (what changes across the ${n} frames, left to right): ${spec.motion}
+MOTION (what changes across the ${n} frames, left to right): ${motion}
 Spread this motion evenly across the ${n} frames so it ${spec.loop ? 'loops smoothly back to the first frame' : 'plays once from start to finish'}.
-${userPrompt ? `\nADDITIONAL DIRECTION (honor this, but keep every lock above — identical facing, identical character scale, same ground line, exactly ${n} frames in one horizontal row): ${userPrompt}\n` : ''}
+
 FILMSTRIP LAYOUT (CRITICAL):
 - ONE wide image, ${n} frames in a single horizontal row, left to right, each frame the same width (overall aspect ratio about ${n}:1).
 - Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, or text — just the ${n} character drawings evenly spaced.

@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Character, PoseSet, AnimationClip } from '@/lib/types';
+import { Character, PoseSet, AnimationClip, getAnimationPrompt } from '@/lib/types';
 import { listGroups } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
 import { Lightbox, useLightbox, LightboxAnimation } from '@/components/Lightbox';
@@ -23,6 +23,7 @@ export default function CharacterDetailPage({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Character>>({});
   const [regenerating, setRegenerating] = useState(false);
+  const [animGenerating, setAnimGenerating] = useState(false);
   const [animations, setAnimations] = useState<AnimationClip[]>([]);
   const lightbox = useLightbox();
 
@@ -105,11 +106,45 @@ export default function CharacterDetailPage({
     return base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
   };
 
-  const handleAnimate = (imageIndex: number) => {
+  const handleGenerateAnimation = async (imageIndex: number, animPrompt: string) => {
     const image = currentPoses[imageIndex];
     if (!image || !character) return;
-    lightbox.close();
-    router.push(`/animate/${id}?action=${encodeURIComponent(poseActionSlug(image.name))}`);
+    const action = poseActionSlug(image.name);
+    const displayName = action.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    setAnimGenerating(true);
+    try {
+      let clip = animations.find(a => a.action === action);
+      if (!clip) {
+        const createRes = await fetch('/api/animations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ characterId: id, action, displayName }),
+        });
+        if (!createRes.ok) throw new Error('create failed');
+        clip = await createRes.json();
+      }
+      const genRes = await fetch(`/api/animations/${clip!.id}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: animPrompt?.trim() || undefined }),
+      });
+      if (!genRes.ok) {
+        const b = await genRes.json().catch(() => ({}));
+        throw new Error(b.error || 'generation failed');
+      }
+      const updated: AnimationClip = await genRes.json();
+      setAnimations(prev => [updated, ...prev.filter(c => c.id !== updated.id)]);
+      showToast(`${updated.displayName} — ${updated.frameCount} frames`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Failed to generate animation');
+    } finally {
+      setAnimGenerating(false);
+    }
+  };
+
+  const animationPromptFor = (imageIndex: number): string => {
+    const image = currentPoses[imageIndex];
+    return image ? getAnimationPrompt(poseActionSlug(image.name)) : '';
   };
 
   const resolveAnimation = (imageIndex: number): LightboxAnimation | null => {
@@ -202,7 +237,6 @@ export default function CharacterDetailPage({
         <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
           <button onClick={() => setEditing(value => !value)} className="pf-ghost" style={secondaryButton}>{editing ? 'Cancel' : 'Edit'}</button>
           <button onClick={handleDuplicate} className="pf-ghost" style={secondaryButton}>Duplicate</button>
-          <Link href={`/animate/${id}`} className="pf-ghost" style={{ ...secondaryButton, textDecoration: 'none' }}>Animate</Link>
           <Link href={`/export/${id}`} className="pf-filled" style={primaryLink}>
             Export →
           </Link>
@@ -301,7 +335,7 @@ export default function CharacterDetailPage({
           </div>
         )}
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} onAnimate={handleAnimate} resolveAnimation={resolveAnimation} regenerating={regenerating} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} resolveAnimation={resolveAnimation} onGenerateAnimation={handleGenerateAnimation} animationPromptFor={animationPromptFor} regenerating={regenerating} animGenerating={animGenerating} />}
     </div>
   );
 }

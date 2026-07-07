@@ -3,7 +3,7 @@
 import { Suspense, use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Character, AnimationClip } from '@/lib/types';
+import { Character, AnimationClip, getAnimationPrompt } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 
 function slugify(value: string): string {
@@ -38,7 +38,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   const [playing, setPlaying] = useState(true);
   const [fps, setFps] = useState(12);
   const [frameIndex, setFrameIndex] = useState(0);
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(() => getAnimationPrompt(queryAction || 'walk'));
   const [poseUrls, setPoseUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -70,7 +70,11 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
         setPoseUrls(urlMap);
         const uniq = Array.from(new Set(poses.map(im => actionOf(im.name))));
         setActions(uniq);
-        setAction(prev => (queryAction ? prev : (uniq.includes(prev) ? prev : uniq[0] || prev)));
+        if (!queryAction) {
+          const resolved = uniq.includes('walk') ? 'walk' : (uniq[0] || 'walk');
+          setAction(resolved);
+          setPrompt(getAnimationPrompt(resolved));
+        }
       })
       .catch(() => setActions([]));
   }, [id, router, queryAction]);
@@ -213,7 +217,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
               return (
                 <button
                   key={a}
-                  onClick={() => setAction(a)}
+                  onClick={() => { setAction(a); setPrompt(getAnimationPrompt(a)); }}
                   style={{ ...chip, ...(action === a ? { background: 'var(--accent)', color: 'var(--canvas)', border: '1px solid var(--accent)' } : {}) }}
                   title={has ? 'Has an animation' : 'Not animated yet'}
                 >
