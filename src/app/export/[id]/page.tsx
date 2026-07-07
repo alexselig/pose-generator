@@ -180,7 +180,7 @@ export default function ExportPage({
   if (!character || !poseSet) {
     return (
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '30px 34px' }}>
-        <h1 style={{ font: '700 28px var(--font-display)', margin: '0 0 8px' }}>Export to Godot</h1>
+        <h1 style={{ font: '600 34px var(--font-display)', margin: '0 0 8px' }}>Export to Godot</h1>
         <p style={{ color: 'var(--text-dim)', marginBottom: '18px' }}>You need a generated pose set before exporting.</p>
         <Link href={`/generate/${id}`} style={{ color: 'var(--accent-cyan)', textDecoration: 'none' }}>
           Go generate poses →
@@ -193,17 +193,17 @@ export default function ExportPage({
     <div style={{ maxWidth: '1060px', margin: '0 auto', padding: '24px 30px 60px' }}>
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '5px' }}>
-          <Link href={`/characters/${id}`} style={{ background: '#252247', color: '#e8e8ec', border: '1px solid #353160', borderRadius: '10px', padding: '9px 15px', font: '600 12px var(--font-display)', cursor: 'pointer', flexShrink: 0, textDecoration: 'none' }}>
+          <Link href={`/characters/${id}`} className="pf-ghost" style={{ background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--border-field)', borderRadius: '10px', padding: '9px 15px', font: '600 12px var(--font-body)', cursor: 'pointer', flexShrink: 0, textDecoration: 'none' }}>
             ← Back
           </Link>
-          <h1 style={{ font: '700 26px var(--font-display)', letterSpacing: '-.02em', margin: 0 }}>Export to Godot</h1>
+          <h1 style={{ font: '600 34px var(--font-display)', letterSpacing: '-.01em', margin: 0 }}>Export to Godot</h1>
         </div>
-        <p style={{ margin: 0, color: '#9a96c4', fontSize: '13px' }}>Transparent PNGs, consistent canvas & anchor, Godot-friendly names, optional pose sheet + manifest.</p>
+        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>Transparent PNGs, consistent canvas & anchor, Godot-friendly names, optional pose sheet + manifest.</p>
       </div>
 
       <div className="pf-grid-1" style={{ display: 'grid', gridTemplateColumns: '300px 1fr 1fr', gap: '20px', alignItems: 'start' }}>
         <section style={panelStyle}>
-          <div style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4', marginBottom: '14px' }}>EXPORT SETTINGS</div>
+          <div style={{ font: '600 11px var(--font-body)', letterSpacing: '.08em', color: 'var(--muted)', marginBottom: '14px' }}>EXPORT SETTINGS</div>
           <FieldLabel>FILE PREFIX</FieldLabel>
           <input value={prefix} onChange={e => setPrefix(slugify(e.target.value) || 'character')} style={{ ...fieldStyle, font: '13px var(--font-mono)' }} />
 
@@ -214,10 +214,10 @@ export default function ExportPage({
                 key={size}
                 onClick={() => setCanvasSize(size)}
                 style={{
-                  flex: 1, borderRadius: '8px', padding: '8px 4px', font: '600 12px var(--font-display)', cursor: 'pointer',
+                  flex: 1, borderRadius: '8px', padding: '8px 4px', font: '600 12px var(--font-body)', cursor: 'pointer',
                   ...(canvasSize === size
-                    ? { background: 'var(--gradient-brand)', color: '#fff', border: '1px solid transparent' }
-                    : { background: '#252247', color: '#cdc9ee', border: '1px solid #353160' })
+                    ? { background: 'var(--gradient-brand)', color: 'var(--canvas)', border: '1px solid transparent' }
+                    : { background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--border-field)' })
                 }}
               >
                 {size}px
@@ -234,8 +234,8 @@ export default function ExportPage({
                 style={{
                   textAlign: 'left', borderRadius: '8px', padding: '8px 11px', font: '500 12px var(--font-mono)', cursor: 'pointer',
                   ...(anchor === a
-                    ? { background: 'rgba(111,141,255,.18)', color: '#8fa6ff', border: '1px solid rgba(111,141,255,.4)' }
-                    : { background: '#252247', color: '#9a96c4', border: '1px solid #353160' })
+                    ? { background: 'var(--accent-tint)', color: 'var(--accent)', border: '1px solid var(--accent)' }
+                    : { background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--border-field)' })
                 }}
               >
                 {a}
@@ -243,12 +243,12 @@ export default function ExportPage({
             ))}
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#cdc9ee', cursor: 'pointer', userSelect: 'none' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--ink-2)', cursor: 'pointer', userSelect: 'none' }}>
             <input
               type="checkbox"
               checked={includeSheet}
               onChange={() => setIncludeSheet(v => !v)}
-              style={{ accentColor: '#7b5cff', width: '15px', height: '15px' }}
+              style={{ accentColor: 'var(--accent)', width: '15px', height: '15px' }}
             />
             Include pose sheet
           </label>
@@ -256,14 +256,14 @@ export default function ExportPage({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minWidth: 0 }}>
           <section style={panelStyle}>
-            <div style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4', marginBottom: '12px' }}>ASSET PACK · {files.length} FILES</div>
-            <div style={{ font: '400 12.5px/1.9 var(--font-mono)', color: '#cdc9ee' }}>
-              <div style={{ color: '#9a96c4' }}>/characters/<span style={{ color: '#6f8dff' }}>{prefix}</span>/</div>
+            <div style={{ font: '600 11px var(--font-body)', letterSpacing: '.08em', color: 'var(--muted)', marginBottom: '12px' }}>ASSET PACK · {files.length} FILES</div>
+            <div style={{ font: '400 12.5px/1.9 var(--font-mono)', color: 'var(--ink-2)' }}>
+              <div style={{ color: 'var(--muted)' }}>/characters/<span style={{ color: 'var(--accent)' }}>{prefix}</span>/</div>
               {files.map(file => {
                 const isManifest = file.endsWith('.json');
                 const isSheet = file.includes('_pose_sheet');
                 const glyph = isManifest ? '{}' : isSheet ? '▦' : '🖼';
-                const color = isManifest ? '#3ddc97' : isSheet ? '#b9b3e6' : '#cdc9ee';
+                const color = isManifest ? 'var(--success)' : isSheet ? 'var(--muted)' : 'var(--ink-2)';
                 return (
                   <div key={file} style={{ paddingLeft: '16px', color }}>{glyph} {file}</div>
                 );
@@ -273,12 +273,12 @@ export default function ExportPage({
 
           {includeSheet && generatedPoses.length > 0 && (
             <section style={panelStyle}>
-              <div style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4', marginBottom: '12px' }}>POSE SHEET PREVIEW</div>
-              <div style={{ border: '1px solid #2e2a54', borderRadius: '10px', padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', background: character ? `radial-gradient(150px 95px at 50% 22%, ${hexAlpha(character.colorPalette?.[0] || '#7b5cff', 0.3)}, #14132e 72%)` : '#14132e' }}>
+              <div style={{ font: '600 11px var(--font-body)', letterSpacing: '.08em', color: 'var(--muted)', marginBottom: '12px' }}>POSE SHEET PREVIEW</div>
+              <div style={{ border: '1px solid var(--border-card)', borderRadius: '10px', padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', background: character ? `radial-gradient(150px 95px at 50% 22%, ${hexAlpha(character.colorPalette?.[0] || '#7A2E2A', 0.18)}, var(--canvas-raised) 72%)` : 'var(--canvas-raised)' }}>
                 {generatedPoses.map((pose, i) => (
                   <div key={pose.id} onClick={() => lightbox.open(generatedPoses.map(p => ({ src: getPoseImageSrc(character, p), alt: p.displayName })), i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
                     <img src={getPoseImageSrc(character, pose)} alt={pose.displayName} style={{ maxWidth: '100%', maxHeight: '74px', objectFit: 'contain' }} />
-                    <span style={{ font: '400 8px var(--font-mono)', color: '#7d79ad', marginTop: '-4px' }}>{pose.name}</span>
+                    <span style={{ font: '400 8px var(--font-mono)', color: 'var(--muted)', marginTop: '-4px' }}>{pose.name}</span>
                   </div>
                 ))}
               </div>
@@ -288,16 +288,16 @@ export default function ExportPage({
 
         <section style={{ ...panelStyle, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span style={{ font: '600 11px var(--font-display)', letterSpacing: '.08em', color: '#9a96c4' }}>{prefix}_manifest.json</span>
-            <span style={{ font: '400 10px var(--font-mono)', color: '#3ddc97' }}>Godot ✓</span>
+            <span style={{ font: '600 11px var(--font-body)', letterSpacing: '.08em', color: 'var(--muted)' }}>{prefix}_manifest.json</span>
+            <span style={{ font: '400 10px var(--font-mono)', color: 'var(--success)' }}>Godot ✓</span>
           </div>
-          <pre style={{ margin: 0, background: '#13122c', border: '1px solid #2e2a54', borderRadius: '10px', padding: '14px', font: '400 11.5px/1.6 var(--font-mono)', color: '#c4c0e6', overflow: 'auto', maxHeight: '360px', whiteSpace: 'pre' }}>
+          <pre style={{ margin: 0, background: 'var(--code-panel-bg)', border: '1px solid var(--border-card)', borderRadius: '10px', padding: '14px', font: '400 11.5px/1.6 var(--font-mono)', color: 'var(--code-text)', overflow: 'auto', maxHeight: '360px', whiteSpace: 'pre' }}>
             {manifest && JSON.stringify(manifest, null, 2)}
           </pre>
           <button onClick={handleDownload} disabled={downloading || generatedPoses.length === 0} style={{ marginTop: '14px', width: '100%', ...primaryButton(downloading || generatedPoses.length === 0), borderRadius: '12px', padding: '13px' }}>
             ⬇ Export Godot asset pack
           </button>
-          <div style={{ fontSize: '11px', color: '#7d79ad', textAlign: 'center', marginTop: '8px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', textAlign: 'center', marginTop: '8px' }}>
             {files.length} files · {canvasSize}×{canvasSize} · transparent PNG
           </div>
         </section>
@@ -323,7 +323,7 @@ function getPoseImageSrc(character: Character, pose: Pose) {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '6px' }}>{children}</div>;
+  return <div style={{ font: '600 10px var(--font-body)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '6px' }}>{children}</div>;
 }
 
 const panelStyle: React.CSSProperties = {
@@ -350,11 +350,11 @@ const fieldStyle: React.CSSProperties = {
 function primaryButton(disabled: boolean): React.CSSProperties {
   return {
     background: disabled ? 'var(--bg-raised)' : 'var(--gradient-brand-full)',
-    color: disabled ? 'var(--text-dimmer)' : '#fff',
+    color: disabled ? 'var(--text-dimmer)' : 'var(--canvas)',
     border: 'none',
     borderRadius: 'var(--radius-btn)',
     padding: '12px 18px',
-    font: '700 13px var(--font-display)',
+    font: '700 13px var(--font-body)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     boxShadow: disabled ? 'none' : 'var(--shadow-btn-glow)',
   };

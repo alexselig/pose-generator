@@ -224,11 +224,11 @@ export default function GeneratePage({
   if (phase === 'review') {
     return (
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '24px 30px 60px' }}>
-        <h1 style={{ font: '700 26px var(--font-display)', letterSpacing: '-.02em', margin: '0 0 5px' }}>Review & approve poses</h1>
+        <h1 style={{ font: '600 34px var(--font-display)', letterSpacing: '-.01em', margin: '0 0 5px' }}>Review &amp; approve poses</h1>
         <p style={{ margin: '0 0 26px', color: 'var(--text-dim)', fontSize: '13px' }}>Approve poses or request regeneration.</p>
 
         {error && (
-          <div style={{ marginBottom: '16px', borderRadius: '12px', border: '1px solid rgba(255,125,138,.35)', background: 'rgba(255,125,138,.12)', color: 'var(--danger)', padding: '12px 14px' }}>
+          <div style={{ marginBottom: '16px', borderRadius: '12px', border: '1px solid rgba(142,58,53,.35)', background: 'rgba(142,58,53,.1)', color: 'var(--danger)', padding: '12px 14px' }}>
             {error}
           </div>
         )}
@@ -258,14 +258,14 @@ export default function GeneratePage({
               </div>
               <div style={{ padding: '12px' }}>
                 <div style={{ marginBottom: '9px' }}>
-                  <div style={{ font: '600 14px var(--font-display)' }}>{pose.displayName}</div>
-                  <div style={{ fontSize: '11.5px', color: '#9a96c4', marginTop: '4px' }}>{pose.useCase}</div>
+                  <div style={{ font: '600 14px var(--font-body)' }}>{pose.displayName}</div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px' }}>{pose.useCase}</div>
                 </div>
 
                 {pose.status === 'approved' ? (
                   <button
                     onClick={() => setReviewPoses(prev => prev.map((p, j) => j === i ? { ...p, status: 'generated' } : p))}
-                    style={{ width: '100%', minHeight: '79px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', font: '700 14px var(--font-display)', cursor: 'pointer', background: '#3ddc97', color: '#0c2a1c', border: 'none' }}
+                    style={{ width: '100%', minHeight: '79px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', font: '700 14px var(--font-body)', cursor: 'pointer', background: 'var(--success)', color: 'var(--canvas)', border: 'none' }}
                   >
                     ✓ Approved
                   </button>
@@ -282,19 +282,19 @@ export default function GeneratePage({
                       rows={1}
                       className="auto-grow"
                       placeholder="Edit prompt for redo…"
-                      style={{ width: '100%', background: '#161534', border: '1px solid #312d57', borderRadius: '8px', color: '#f0eefb', padding: '7px 9px', font: '12px/1.4 system-ui', outline: 'none', resize: 'none', overflow: 'hidden', marginBottom: '0', display: 'block' }}
+                      style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-field)', borderRadius: '8px', color: 'var(--ink)', padding: '7px 9px', font: '12px/1.4 var(--font-body)', outline: 'none', resize: 'none', overflow: 'hidden', marginBottom: '0', display: 'block' }}
                     />
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
                         onClick={() => void handleRedoPose(i)}
                         disabled={generatingIdx === i}
-                        style={{ flex: 1, background: '#252247', color: '#cdc9ee', border: '1px solid #353160', borderRadius: '9px', padding: '9px', font: '600 12px var(--font-display)', cursor: generatingIdx === i ? 'wait' : 'pointer', opacity: generatingIdx === i ? 0.7 : 1 }}
+                        style={{ flex: 1, background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--border-field)', borderRadius: '9px', padding: '9px', font: '600 12px var(--font-body)', cursor: generatingIdx === i ? 'wait' : 'pointer', opacity: generatingIdx === i ? 0.7 : 1 }}
                       >
                         ↻ Redo
                       </button>
                       <button
                         onClick={() => setReviewPoses(prev => prev.map((p, j) => j === i ? { ...p, status: 'approved' } : p))}
-                        style={{ flex: 1, background: 'rgba(61,220,151,.12)', color: '#3ddc97', border: '1px solid rgba(61,220,151,.3)', borderRadius: '9px', padding: '9px', font: '600 12px var(--font-display)', cursor: 'pointer' }}
+                        style={{ flex: 1, background: 'rgba(94,107,59,.12)', color: 'var(--success)', border: '1px solid rgba(94,107,59,.4)', borderRadius: '9px', padding: '9px', font: '600 12px var(--font-body)', cursor: 'pointer' }}
                       >
                         ✓ Approve
                       </button>
@@ -306,12 +306,12 @@ export default function GeneratePage({
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', paddingTop: '18px', borderTop: '1px solid #262248' }}>
-          <span style={{ fontSize: '13px', color: '#9a96c4' }}><b style={{ color: '#e6e3f5', fontWeight: 700 }}>{approvedCount}</b> of {reviewPoses.length} approved</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', paddingTop: '18px', borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: '13px', color: 'var(--muted)' }}><b style={{ color: 'var(--ink)', fontWeight: 700 }}>{approvedCount}</b> of {reviewPoses.length} approved</span>
           <div style={{ flex: 1 }} />
           <button
             onClick={() => void handleDone()}
-            style={{ background: 'var(--gradient-brand)', color: '#fff', border: 'none', borderRadius: '11px', padding: '12px 24px', font: '700 14px var(--font-display)', cursor: 'pointer', boxShadow: '0 12px 28px -10px rgba(91,108,255,.9)' }}
+            style={{ background: 'var(--accent)', color: 'var(--canvas)', border: 'none', borderRadius: '11px', padding: '12px 24px', font: '700 14px var(--font-body)', cursor: 'pointer', boxShadow: 'none' }}
           >
             Done
           </button>
@@ -324,21 +324,21 @@ export default function GeneratePage({
   // ── Pick phase ──
   return (
     <div style={{ padding: '24px 30px 60px', maxWidth: '820px' }}>
-      <Link href={`/characters/${id}`} style={{ color: '#9a96c4', fontSize: '12px', textDecoration: 'none', display: 'inline-block', marginBottom: '18px' }}>← Back to character</Link>
-      <h1 style={{ font: '700 26px var(--font-display)', letterSpacing: '-.02em', margin: '0 0 5px' }}>Add poses</h1>
+      <Link href={`/characters/${id}`} style={{ color: 'var(--muted)', fontSize: '12px', textDecoration: 'none', display: 'inline-block', marginBottom: '18px' }}>← Back to character</Link>
+      <h1 style={{ font: '600 34px var(--font-display)', letterSpacing: '-.01em', margin: '0 0 5px' }}>Add poses</h1>
       <p style={{ margin: '0 0 26px', color: 'var(--text-dim)', fontSize: '13px' }}>
         Pick from suggested poses or add your own custom names.
       </p>
 
       <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-hairline)', borderRadius: '14px', padding: '18px', marginBottom: '26px' }}>
-        <div style={{ font: '600 13px var(--font-display)', color: 'var(--text-primary)', marginBottom: '14px' }}>
+        <div style={{ font: '600 13px var(--font-body)', color: 'var(--text-primary)', marginBottom: '14px' }}>
           Pose List · {pickedPoses.length} {pickedPoses.length === 1 ? 'pose' : 'poses'}
         </div>
 
         {pickedPoses.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
             {pickedPoses.map((p, i) => (
-              <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', font: '500 11px var(--font-display)', background: 'var(--bg-raised)', padding: '5px 10px', borderRadius: '8px', color: 'var(--text-dim)', border: '1px solid var(--border-hairline)' }}>
+              <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', font: '500 11px var(--font-body)', background: 'var(--bg-raised)', padding: '5px 10px', borderRadius: '8px', color: 'var(--text-dim)', border: '1px solid var(--border-hairline)' }}>
                 {p.displayName}
                 <button
                   onClick={() => handleRemovePose(i)}
@@ -359,19 +359,19 @@ export default function GeneratePage({
           />
           <button
             onClick={handleAddCustom}
-            style={{ background: 'var(--gradient-brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-btn)', padding: '9px 14px', font: '600 12px var(--font-display)', cursor: 'pointer' }}
+            style={{ background: 'var(--gradient-brand)', color: 'var(--canvas)', border: 'none', borderRadius: 'var(--radius-btn)', padding: '9px 14px', font: '600 12px var(--font-body)', cursor: 'pointer' }}
           >+ Add</button>
         </div>
 
         {suggestions.length > 0 && (
           <>
-            <div style={{ font: '600 10px var(--font-display)', letterSpacing: '.06em', color: '#9a96c4', marginTop: '14px', marginBottom: '8px' }}>SUGGESTIONS</div>
+            <div style={{ font: '600 10px var(--font-body)', letterSpacing: '.06em', color: 'var(--muted)', marginTop: '14px', marginBottom: '8px' }}>SUGGESTIONS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {suggestions.map(p => (
                 <button
                   key={p.name}
                   onClick={() => handleAddSuggestion(p)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', font: '500 11px var(--font-display)', background: 'transparent', padding: '5px 10px', borderRadius: '8px', color: '#9a96c4', border: '1px dashed #353160', cursor: 'pointer' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', font: '500 11px var(--font-body)', background: 'transparent', padding: '5px 10px', borderRadius: '8px', color: 'var(--muted)', border: '1px dashed var(--border-field)', cursor: 'pointer' }}
                 >
                   + {p.displayName}
                 </button>
@@ -382,22 +382,22 @@ export default function GeneratePage({
       </div>
 
       {error && (
-        <div style={{ marginBottom: '16px', borderRadius: '12px', border: '1px solid rgba(255,125,138,.35)', background: 'rgba(255,125,138,.12)', color: 'var(--danger)', padding: '12px 14px' }}>
+        <div style={{ marginBottom: '16px', borderRadius: '12px', border: '1px solid rgba(142,58,53,.35)', background: 'rgba(142,58,53,.1)', color: 'var(--danger)', padding: '12px 14px' }}>
           {error}
         </div>
       )}
 
       <div style={{ display: 'flex', gap: '10px' }}>
-        <Link href={`/characters/${id}`} style={{ background: 'var(--bg-raised)', color: '#e8e8ec', border: '1px solid #353160', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-display)', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>← Back</Link>
+        <Link href={`/characters/${id}`} style={{ background: 'var(--bg-raised)', color: 'var(--ink-2)', border: '1px solid var(--border-field)', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-body)', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>← Back</Link>
         <div style={{ flex: 1 }} />
         <button
           onClick={() => void handleGenerate()}
           disabled={pickedPoses.length === 0}
           style={{
             background: pickedPoses.length > 0 ? 'var(--gradient-brand)' : 'var(--bg-raised)',
-            color: pickedPoses.length > 0 ? '#fff' : 'var(--text-dimmer)',
+            color: pickedPoses.length > 0 ? 'var(--canvas)' : 'var(--text-dimmer)',
             border: 'none', borderRadius: 'var(--radius-btn)', padding: '12px 22px',
-            font: '700 13px var(--font-display)', cursor: pickedPoses.length === 0 ? 'not-allowed' : 'pointer',
+            font: '700 13px var(--font-body)', cursor: pickedPoses.length === 0 ? 'not-allowed' : 'pointer',
             boxShadow: pickedPoses.length > 0 ? 'var(--shadow-btn-glow)' : 'none',
           }}
         >Generate poses →</button>
