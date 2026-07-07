@@ -263,11 +263,13 @@ Spread this motion evenly across the ${n} frames so it ${loopClause}.
 
 FILMSTRIP LAYOUT (CRITICAL):
 - ONE wide image, ${n} frames in a single horizontal row, left to right, each frame the same width (overall aspect ratio about ${n}:1).
-- Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, or text — just the ${n} character drawings evenly spaced.
+- Do NOT draw any grid lines, cell borders, frame numbers, labels, arrows, text, or per-frame background boxes/panels/tiles — just the ${n} character drawings evenly spaced.
 - Identical character scale in every frame; every frame's feet rest on the SAME horizontal ground line; the character is centered the same way in each cell. Same clean line weight and shading in every frame.
 
 RENDERING:
-- Plain flat background, no scenery or ground shadow.
+- The ENTIRE strip shares ONE uniform PURE WHITE (or fully transparent) background. Do NOT place any panel, card, box, rectangle, gradient, drop shadow, or gray/colored fill behind the character in ANY frame — the space around the character is empty white in every frame, with no per-frame tinted cell.
+- No scenery, no ground shadow.
+- Draw ONLY the character's own body and gear — no ground, floor, platform, pedestal, groundline, dust, smoke, splash, motion lines, speed streaks, or effect shapes at the feet or anywhere in the frame.
 - Clean illustrated 2D game style, readable at small sizes, consistent silhouette.
 - Output ONLY the single horizontal strip of ${n} character frames. No text, no UI, no captions.`;
 

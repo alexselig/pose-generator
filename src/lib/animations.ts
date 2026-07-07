@@ -119,7 +119,7 @@ export async function sliceFilmstrip(
     const o = i * channels;
     const r = data[o], g = data[o + 1], b = data[o + 2];
     const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
-    return mn >= 232 && mx - mn <= 18; // only near-white, low saturation (spare cream)
+    return mn >= 214 && mx - mn <= 20; // near-white/light-gray, low saturation (spares colored + cream character parts)
   };
   const seen = new Uint8Array(npx);
   const stack: number[] = [];
@@ -319,7 +319,7 @@ export async function normalizePoseFrame(
       const o = i * 4;
       const r = data[o], g = data[o + 1], b = data[o + 2];
       const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
-      return mn >= 232 && mx - mn <= 18;
+      return mn >= 214 && mx - mn <= 20;
     };
     const seen = new Uint8Array(npx);
     const stack: number[] = [];
