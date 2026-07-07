@@ -35,5 +35,3 @@ Open http://localhost:3000
 1. Get an API key from https://aistudio.google.com/apikey
 2. Add to `.env.local` as `GEMINI_API_KEY=...`
 3. The app uses `gemini-2.0-flash-exp` with image output
-
-Alternatively, use the service account: `charactergen@charactergen-500816.iam.gserviceaccount.com` (requires Editor role).
