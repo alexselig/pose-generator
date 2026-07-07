@@ -18,6 +18,10 @@ const MEDIA_BOX = 'min(74vw, 52vh)';
 // toggle between them (the animation inherits its pose's name).
 const NAME_LABEL_STYLE: React.CSSProperties = { font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' };
 
+// Playback speed multipliers for the animation preview. The base playback runs at
+// half the clip's fps, and the lower-right button cycles 1x -> 2x -> 4x over it.
+const SPEEDS = [1, 2, 4];
+
 export interface LightboxAnimation {
   clipId: string;
   frameCount: number;
@@ -183,12 +187,16 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
 function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void; label: string }) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [speedIdx, setSpeedIdx] = useState(0);
+  const speed = SPEEDS[speedIdx];
 
   useEffect(() => {
     if (!playing || anim.frameCount <= 1) return;
-    const t = setInterval(() => setFrame(f => (f + 1) % anim.frameCount), Math.max(40, 1000 / anim.fps));
+    // Base playback runs at half the clip's fps; the speed button multiplies it (1x/2x/4x).
+    const effectiveFps = (anim.fps / 2) * speed;
+    const t = setInterval(() => setFrame(f => (f + 1) % anim.frameCount), Math.max(40, 1000 / effectiveFps));
     return () => clearInterval(t);
-  }, [playing, anim.frameCount, anim.fps]);
+  }, [playing, anim.frameCount, anim.fps, speed]);
 
   const url = (i: number) => `/api/animations/${anim.clipId}/frames/${i}?v=${encodeURIComponent(anim.updatedAt)}`;
   const box = MEDIA_BOX;
@@ -197,19 +205,30 @@ function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; m
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
       <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
-      <div ref={measureRef} style={{ position: 'relative', width: box, height: box, borderRadius: '12px', overflow: 'hidden', background: checker, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}>
+      <div
+        ref={measureRef}
+        onClick={() => setPlaying(p => !p)}
+        title={playing ? 'Click to pause' : 'Click to play'}
+        style={{ position: 'relative', width: box, height: box, borderRadius: '12px', overflow: 'hidden', background: checker, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', cursor: 'pointer' }}
+      >
         {Array.from({ length: anim.frameCount }, (_, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={i} src={url(i)} alt={`frame ${i + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: i === frame ? 1 : 0 }} />
         ))}
+        {!playing && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <span style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(26,23,20,.55)', color: 'var(--canvas)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', paddingLeft: '4px' }}>▶</span>
+          </div>
+        )}
+        <button
+          onClick={e => { e.stopPropagation(); setSpeedIdx(i => (i + 1) % SPEEDS.length); }}
+          title="Adjust playback speed"
+          style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(26,23,20,.62)', color: 'var(--canvas)', border: '1px solid rgba(247,244,238,.22)', borderRadius: '999px', padding: '5px 11px', font: '600 11px var(--font-body)', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+        >
+          Speed {speed}x
+        </button>
       </div>
       <span style={NAME_LABEL_STYLE}>{label}</span>
-      <button
-        onClick={() => setPlaying(p => !p)}
-        style={{ background: 'rgba(247,244,238,.1)', border: '1px solid rgba(247,244,238,.18)', color: 'var(--canvas)', borderRadius: 'var(--radius-btn)', padding: '7px 16px', font: '600 12px var(--font-body)', cursor: 'pointer' }}
-      >
-        {playing ? '❚❚ Pause' : '▶ Play'}
-      </button>
       {/* Frames — below the animation, above the prompt. Click to scrub. */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 'min(88vw, 640px)' }}>
         {Array.from({ length: anim.frameCount }, (_, i) => (
