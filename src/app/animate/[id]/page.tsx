@@ -39,6 +39,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   const [fps, setFps] = useState(12);
   const [frameIndex, setFrameIndex] = useState(0);
   const [prompt, setPrompt] = useState('');
+  const [poseUrls, setPoseUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch(`/api/characters/${id}`)
@@ -54,15 +55,20 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
     // Derive the animatable actions from the character's existing poses.
     fetch(`/api/characters/${id}/images`)
       .then(res => (res.ok ? res.json() : { images: [], characterName: '' }))
-      .then((body: { images?: { name: string; isArchive: boolean }[]; characterName?: string }) => {
+      .then((body: { images?: { name: string; url: string; isArchive: boolean }[]; characterName?: string }) => {
         const charSlug = slugify(body.characterName || '');
-        const slugs = (body.images || [])
-          .filter(im => !im.isArchive)
-          .map(im => {
-            const base = im.name.replace(/\.png$/, '');
-            return charSlug && base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
-          });
-        const uniq = Array.from(new Set(slugs));
+        const poses = (body.images || []).filter(im => !im.isArchive);
+        const actionOf = (name: string) => {
+          const base = name.replace(/\.png$/, '');
+          return charSlug && base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
+        };
+        const urlMap: Record<string, string> = {};
+        for (const im of poses) {
+          const a = actionOf(im.name);
+          if (a && !(a in urlMap)) urlMap[a] = im.url;
+        }
+        setPoseUrls(urlMap);
+        const uniq = Array.from(new Set(poses.map(im => actionOf(im.name))));
         setActions(uniq);
         setAction(prev => (queryAction ? prev : (uniq.includes(prev) ? prev : uniq[0] || prev)));
       })
@@ -164,9 +170,21 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
                 />
               ))
             ) : (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-                {generating ? 'Generating…' : clip?.status === 'failed' ? 'Generation failed — try again.' : 'No animation yet. Generate one →'}
-              </div>
+              <>
+                {poseUrls[action] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={poseUrls[action]}
+                    alt={`${titleCase(action)} pose`}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: generating ? 0.32 : 0.72 }}
+                  />
+                )}
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '14px' }}>
+                  <span style={{ background: 'rgba(26,23,20,.62)', color: 'var(--canvas)', padding: '7px 13px', borderRadius: '999px', font: '600 12px var(--font-body)', textAlign: 'center' }}>
+                    {generating ? 'Generating…' : clip?.status === 'failed' ? 'Generation failed — try again.' : poseUrls[action] ? 'Starting pose — add a prompt & Generate' : 'No animation yet. Generate one →'}
+                  </span>
+                </div>
+              </>
             )}
           </div>
 

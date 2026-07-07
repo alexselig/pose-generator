@@ -112,6 +112,10 @@ input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
 .pf-newchar { transition: background .15s ease, color .15s ease; }
 .pf-newchar:hover { background: var(--accent) !important; color: var(--canvas) !important; }
 
+/* Lightbox "＋ Animation" square placeholder — fills on hover */
+.pf-addanim { transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.pf-addanim:hover { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--canvas) !important; }
+
 /* Gallery cards + add-tile */
 .pf-card { transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
 .pf-card:hover { border-color: #C9AFA6 !important; box-shadow: 0 18px 40px -24px rgba(90,55,30,.4); transform: translateY(-2px); }

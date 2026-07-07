@@ -77,91 +77,95 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, onAnimate,
         )}
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '86vw' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            {anim && (
+            {(anim || onAnimate) && (
               <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Static pose</span>
             )}
             <img
               src={img.src}
               alt={img.alt}
-              style={{ maxWidth: anim ? 'min(40vw, 56vh)' : '80vw', maxHeight: onRegenerate ? '56vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
+              style={{ maxWidth: (anim || onAnimate) ? 'min(40vw, 56vh)' : '80vw', maxHeight: onRegenerate ? '56vh' : '72vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
             />
             <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
           </div>
 
-          {anim && (
+          {anim ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation · {anim.displayName}</span>
               <AnimationPlayer key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} side={onRegenerate ? '56vh' : '72vh'} />
             </div>
-          )}
-        </div>
-
-        {(onRegenerate || onAnimate) && (
-          <div style={{ width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {onRegenerate && (
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
-                <textarea
-                  ref={promptRef}
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void onRegenerate(index, prompt);
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Describe changes for regeneration…"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border-field)',
-                    borderRadius: 'var(--radius-input)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    font: '13px/1.5 var(--font-body)',
-                    outline: 'none',
-                    resize: 'none',
-                  }}
-                />
-                <button
-                  onClick={() => void onRegenerate(index, prompt)}
-                  disabled={regenerating}
-                  style={{
-                    flexShrink: 0,
-                    background: regenerating ? 'rgba(247,244,238,.15)' : 'var(--accent)',
-                    color: regenerating ? 'rgba(247,244,238,.6)' : 'var(--canvas)',
-                    border: '1px solid transparent',
-                    borderRadius: 'var(--radius-btn)',
-                    padding: '10px 18px',
-                    font: '600 13px var(--font-body)',
-                    cursor: regenerating ? 'wait' : 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {regenerating ? 'Generating…' : '↻ Regenerate'}
-                </button>
-              </div>
-            )}
-
-            {onAnimate && (
+          ) : onAnimate ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
               <button
                 onClick={() => onAnimate(index)}
+                className="pf-addanim"
+                title="Generate an animation from this pose"
                 style={{
-                  alignSelf: 'flex-start',
-                  background: 'var(--accent)',
-                  color: 'var(--canvas)',
-                  border: '1px solid var(--accent)',
-                  borderRadius: 'var(--radius-btn)',
-                  padding: '10px 18px',
-                  font: '600 13px var(--font-body)',
+                  width: `min(40vw, ${onRegenerate ? '56vh' : '72vh'})`,
+                  height: `min(40vw, ${onRegenerate ? '56vh' : '72vh'})`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  background: 'rgba(247,244,238,.04)',
+                  border: '1.5px dashed rgba(247,244,238,.28)',
+                  borderRadius: '12px',
+                  color: 'rgba(247,244,238,.85)',
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ marginRight: '8px' }}>+</span>Animation
+                <span style={{ fontSize: '46px', lineHeight: 1, fontWeight: 200 }}>＋</span>
+                <span style={{ font: '600 12px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase' }}>Animation</span>
               </button>
-            )}
+            </div>
+          ) : null}
+        </div>
+
+        {onRegenerate && (
+          <div style={{ width: '100%', maxWidth: '520px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
+            <textarea
+              ref={promptRef}
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void onRegenerate(index, prompt);
+                }
+              }}
+              rows={2}
+              placeholder="Describe changes for regeneration…"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'var(--surface)',
+                border: '1px solid var(--border-field)',
+                borderRadius: 'var(--radius-input)',
+                color: 'var(--ink)',
+                padding: '10px 12px',
+                font: '13px/1.5 var(--font-body)',
+                outline: 'none',
+                resize: 'none',
+              }}
+            />
+            <button
+              onClick={() => void onRegenerate(index, prompt)}
+              disabled={regenerating}
+              style={{
+                flexShrink: 0,
+                background: regenerating ? 'rgba(247,244,238,.15)' : 'var(--accent)',
+                color: regenerating ? 'rgba(247,244,238,.6)' : 'var(--canvas)',
+                border: '1px solid transparent',
+                borderRadius: 'var(--radius-btn)',
+                padding: '10px 18px',
+                font: '600 13px var(--font-body)',
+                cursor: regenerating ? 'wait' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {regenerating ? 'Generating…' : '↻ Regenerate'}
+            </button>
           </div>
         )}
       </div>
