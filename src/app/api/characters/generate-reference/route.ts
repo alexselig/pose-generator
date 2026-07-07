@@ -31,7 +31,11 @@ export async function POST(request: NextRequest) {
     });
 
     const styleClause = refs.length
-      ? `\n\nSTYLE REFERENCE (CRITICAL): ${refs.length > 1 ? 'design reference images are' : 'a design reference image is'} attached above. Match that ART STYLE closely — the same linework weight, level of detail, shading/rendering technique, color treatment, and overall illustration language. Reproduce the STYLE, not the specific character: design a NEW character from the description in that same style.`
+      ? `\n\nSTYLE + PALETTE LOCK (CRITICAL): ${refs.length > 1 ? 'design reference images are' : 'a design reference image is'} attached above. The new character MUST look like it belongs in the SAME illustrated set as the reference:
+- ART STYLE: match it exactly — the same linework weight, shape language, level of detail, shading/rendering technique, and overall illustration style.
+- COLOR PALETTE: reuse the SAME palette as the reference. Draw the new character's colors (outfit, skin, hair, accessories) from the reference image's colors; keep the same hues, saturation, and overall color mood. Do NOT invent a new or different color scheme, and do NOT fall back to the "expected" real-world colors of the subject.
+- ONLY EXCEPTION: if the character description above explicitly names a color (e.g. "red cloak", "silver hair"), use that exact color for that item; everything else stays on the reference palette.
+- This is a DIFFERENT character (per the description), rendered in the reference's exact style and colors — not a copy of the reference character.`
       : '';
 
     const fullPrompt = `Generate a character reference sheet illustration for a 2D video game character.
@@ -52,7 +56,7 @@ REQUIREMENTS:
 
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
     if (refs.length) {
-      parts.push({ text: `Design/style reference image${refs.length > 1 ? 's' : ''} — match this art style:` });
+      parts.push({ text: `Design/style reference image${refs.length > 1 ? 's' : ''} — match this art style AND color palette for the new character:` });
       for (const r of refs) {
         parts.push({ inlineData: { mimeType: detectImageMimeType(r), data: r } });
       }
