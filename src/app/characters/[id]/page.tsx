@@ -298,9 +298,6 @@ export default function CharacterDetailPage({
                   <span key={`${color}-${index}`} style={{ width: '30px', height: '30px', borderRadius: '7px', background: color, border: '1px solid rgba(0,0,0,.08)' }} />
                 ))}
               </div>
-              <div style={{ flex: 1 }} />
-              <button onClick={handleArchive} className="pf-textaction" style={textAction}>{character.archived ? 'Unarchive' : 'Archive'}</button>
-              <button onClick={handleDelete} style={{ ...textAction, color: 'var(--accent)', fontWeight: 600 }}>Delete</button>
             </div>
           </>
         )}
@@ -334,6 +331,11 @@ export default function CharacterDetailPage({
             ))}
           </div>
         )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '20px', marginTop: '44px', paddingTop: '20px', borderTop: '1px solid var(--border-soft)' }}>
+        <button onClick={handleArchive} className="pf-textaction" style={textAction}>{character.archived ? 'Unarchive' : 'Archive'}</button>
+        <button onClick={handleDelete} style={{ ...textAction, color: 'var(--accent)', fontWeight: 600 }}>Delete</button>
       </div>
       {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} resolveAnimation={resolveAnimation} onGenerateAnimation={handleGenerateAnimation} animationPromptFor={animationPromptFor} regenerating={regenerating} animGenerating={animGenerating} />}
     </div>
