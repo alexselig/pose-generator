@@ -28,6 +28,7 @@ export interface LightboxAnimation {
   fps: number;
   updatedAt: string;
   displayName: string;
+  approved?: boolean;
 }
 
 interface LightboxProps {
@@ -37,12 +38,13 @@ interface LightboxProps {
   onRegenerate?: (index: number, prompt: string) => Promise<void>;
   resolveAnimation?: (index: number) => LightboxAnimation | null;
   onGenerateAnimation?: (index: number, prompt: string) => Promise<void>;
+  onApproveAnimation?: (index: number, approved: boolean) => Promise<void>;
   animationPromptFor?: (index: number) => string;
   regenerating?: boolean;
   animGenerating?: boolean;
 }
 
-export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
+export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, onApproveAnimation, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [view, setView] = useState<'static' | 'animation'>('static');
 
@@ -88,6 +90,11 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
   const showingAnimation = canAnimate && view === 'animation';
   const promptEnabled = showingAnimation ? !!onGenerateAnimation : !!onRegenerate;
   const busy = showingAnimation ? !!animGenerating : !!regenerating;
+  // Approval applies only to a generated animation. When approved, the prompt +
+  // regenerate row is replaced by a solid "Approved" button of the same width.
+  const canApprove = showingAnimation && !!anim && !!onApproveAnimation && !animGenerating;
+  const isApproved = showingAnimation && !!anim?.approved;
+  const rowWidthStyle: React.CSSProperties = mediaWidth ? { width: `${mediaWidth}px`, maxWidth: 'none' } : { width: '100%', maxWidth: '640px' };
 
   return (
     <div
@@ -153,7 +160,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
           </div>
         )}
 
-        {promptEnabled && (
+        {promptEnabled && !isApproved && (
           <PromptBox
             key={`${showingAnimation ? 'anim' : 'pose'}:${index}`}
             width={mediaWidth}
@@ -166,6 +173,24 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
               else if (onRegenerate) { void onRegenerate(index, value); }
             }}
           />
+        )}
+        {canApprove && (
+          isApproved ? (
+            <button
+              onClick={() => void onApproveAnimation?.(index, false)}
+              title="Approved — click to revise"
+              style={{ ...rowWidthStyle, background: '#3f7d4e', color: '#fff', border: '1px solid #3f7d4e', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-body)', cursor: 'pointer' }}
+            >
+              ✓ Approved
+            </button>
+          ) : (
+            <button
+              onClick={() => void onApproveAnimation?.(index, true)}
+              style={{ ...rowWidthStyle, background: 'transparent', color: 'var(--canvas)', border: '1px solid rgba(247,244,238,.4)', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-body)', cursor: 'pointer' }}
+            >
+              Approve
+            </button>
+          )
         )}
       </div>
 
@@ -227,20 +252,6 @@ function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; m
         </button>
       </div>
       <span style={NAME_LABEL_STYLE}>{label}</span>
-      {/* Frames — below the animation, above the prompt. Click to scrub. */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 'min(88vw, 640px)' }}>
-        {Array.from({ length: anim.frameCount }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => { setPlaying(false); setFrame(i); }}
-            title={`Frame ${i + 1}`}
-            style={{ width: '58px', height: '58px', padding: '3px', borderRadius: '8px', cursor: 'pointer', background: checker, border: i === frame ? '2px solid var(--accent)' : '1px solid rgba(247,244,238,.18)' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url(i)} alt={`frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

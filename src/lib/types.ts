@@ -184,6 +184,7 @@ export interface AnimationClip {
   canvasHeight: number;
   frames: AnimationFrame[];
   status: 'pending' | 'generating' | 'generated' | 'failed';
+  approved?: boolean; // reviewer marked this clip as approved
   createdAt: string;
   updatedAt: string;
 }
