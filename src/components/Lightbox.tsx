@@ -292,14 +292,17 @@ function AnimationView({ anim, measureRef, label, onToggleFrame }: { anim: Light
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url(i)} alt={`frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); toggleFrame(i); }}
-                title={hidden ? 'Add this frame back' : 'Hide this frame'}
-                aria-label={hidden ? 'Add this frame back' : 'Hide this frame'}
-                style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hidden ? '#3f7d4e' : 'rgba(26,23,20,.82)', color: '#fff', border: '1px solid rgba(247,244,238,.55)', font: '700 13px var(--font-body)', lineHeight: 1, cursor: 'pointer' }}
-              >
-                {hidden ? '+' : '×'}
-              </button>
+              {/* Frame hide/restore is locked while the clip is approved. */}
+              {!anim.approved && (
+                <button
+                  onClick={e => { e.stopPropagation(); toggleFrame(i); }}
+                  title={hidden ? 'Add this frame back' : 'Hide this frame'}
+                  aria-label={hidden ? 'Add this frame back' : 'Hide this frame'}
+                  style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hidden ? '#3f7d4e' : 'rgba(26,23,20,.82)', color: '#fff', border: '1px solid rgba(247,244,238,.55)', font: '700 13px var(--font-body)', lineHeight: 1, cursor: 'pointer' }}
+                >
+                  {hidden ? '+' : '×'}
+                </button>
+              )}
             </div>
           );
         })}
