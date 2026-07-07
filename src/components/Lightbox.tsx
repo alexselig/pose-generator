@@ -47,6 +47,9 @@ interface LightboxProps {
 export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, onApproveAnimation, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [view, setView] = useState<'static' | 'animation'>('static');
+  // Static-pose approval is UI-only; existing poses are assumed approved, so this
+  // maps pose index -> approved with a default of true (see poseApproved below).
+  const [poseApprovedMap, setPoseApprovedMap] = useState<Record<number, boolean>>({});
 
   // Track the rendered width of whichever media element is on screen (static
   // pose image, animation player, or the "no animation yet" placeholder) so the
@@ -90,10 +93,21 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
   const showingAnimation = canAnimate && view === 'animation';
   const promptEnabled = showingAnimation ? !!onGenerateAnimation : !!onRegenerate;
   const busy = showingAnimation ? !!animGenerating : !!regenerating;
-  // Approval applies only to a generated animation. When approved, the prompt +
-  // regenerate row is replaced by a solid "Approved" button of the same width.
-  const canApprove = showingAnimation && !!anim && !!onApproveAnimation && !animGenerating;
-  const isApproved = showingAnimation && !!anim?.approved;
+  // Approval UI (shared by animations and static poses). When approved, the prompt
+  // + regenerate row is replaced by a solid "Approved" button (same width) with a
+  // square ✕ to cancel. Animation approval persists via onApproveAnimation; static
+  // pose approval is UI-only and defaults to approved (existing poses are assumed
+  // approved) on the review lightbox (canAnimate).
+  const animApproved = showingAnimation && !!anim?.approved;
+  const poseApproved = !showingAnimation && canAnimate && (poseApprovedMap[index] ?? true);
+  const isApproved = showingAnimation ? animApproved : poseApproved;
+  const canApprove = showingAnimation
+    ? (!!anim && !!onApproveAnimation && !animGenerating)
+    : canAnimate;
+  const setApproval = (approved: boolean) => {
+    if (showingAnimation) void onApproveAnimation?.(index, approved);
+    else setPoseApprovedMap(m => ({ ...m, [index]: approved }));
+  };
   const rowWidthStyle: React.CSSProperties = mediaWidth ? { width: `${mediaWidth}px`, maxWidth: 'none' } : { width: '100%', maxWidth: '640px' };
 
   return (
@@ -175,22 +189,9 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
           />
         )}
         {canApprove && (
-          isApproved ? (
-            <button
-              onClick={() => void onApproveAnimation?.(index, false)}
-              title="Approved — click to revise"
-              style={{ ...rowWidthStyle, background: '#3f7d4e', color: '#fff', border: '1px solid #3f7d4e', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-body)', cursor: 'pointer' }}
-            >
-              ✓ Approved
-            </button>
-          ) : (
-            <button
-              onClick={() => void onApproveAnimation?.(index, true)}
-              style={{ ...rowWidthStyle, background: 'transparent', color: 'var(--canvas)', border: '1px solid rgba(247,244,238,.4)', borderRadius: 'var(--radius-btn)', padding: '12px 18px', font: '600 13px var(--font-body)', cursor: 'pointer' }}
-            >
-              Approve
-            </button>
-          )
+          isApproved
+            ? <ApprovedRow widthStyle={rowWidthStyle} onCancel={() => setApproval(false)} />
+            : <ApproveButton widthStyle={rowWidthStyle} onApprove={() => setApproval(true)} />
         )}
       </div>
 
@@ -252,6 +253,72 @@ function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; m
         </button>
       </div>
       <span style={NAME_LABEL_STYLE}>{label}</span>
+      {/* Key frames — always shown below the animation. Click to scrub. */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 'min(88vw, 640px)' }}>
+        {Array.from({ length: anim.frameCount }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => { setPlaying(false); setFrame(i); }}
+            title={`Frame ${i + 1}`}
+            style={{ width: '58px', height: '58px', padding: '3px', borderRadius: '8px', cursor: 'pointer', background: checker, border: i === frame ? '2px solid var(--accent)' : '1px solid rgba(247,244,238,.18)' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url(i)} alt={`frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Outline Approve button that fills solid green on hover. Shared by the animation
+// and static-pose approval rows.
+function ApproveButton({ widthStyle, onApprove }: { widthStyle: React.CSSProperties; onApprove: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onApprove}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        ...widthStyle,
+        height: '44px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: hover ? '#3f7d4e' : 'transparent',
+        color: hover ? '#fff' : 'var(--canvas)',
+        border: `1px solid ${hover ? '#3f7d4e' : 'rgba(247,244,238,.4)'}`,
+        borderRadius: 'var(--radius-btn)',
+        font: '600 13px var(--font-body)',
+        cursor: 'pointer',
+        transition: 'background .15s ease, color .15s ease, border-color .15s ease',
+      }}
+    >
+      Approve
+    </button>
+  );
+}
+
+// Solid "Approved" state with a square ✕ to cancel and return to the prompt +
+// regenerate + approve state.
+function ApprovedRow({ widthStyle, onCancel }: { widthStyle: React.CSSProperties; onCancel: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{ ...widthStyle, display: 'flex', gap: '8px', height: '44px' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#3f7d4e', color: '#fff', border: '1px solid #3f7d4e', borderRadius: 'var(--radius-btn)', font: '600 13px var(--font-body)' }}>
+        ✓ Approved
+      </div>
+      <button
+        onClick={onCancel}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        title="Cancel approval"
+        aria-label="Cancel approval"
+        style={{ flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hover ? 'rgba(247,244,238,.14)' : 'transparent', color: 'var(--canvas)', border: '1px solid rgba(247,244,238,.4)', borderRadius: 'var(--radius-btn)', font: '600 17px var(--font-body)', lineHeight: 1, cursor: 'pointer', transition: 'background .15s ease' }}
+      >
+        ✕
+      </button>
     </div>
   );
 }
