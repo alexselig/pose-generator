@@ -212,10 +212,15 @@ export async function generateAnimationFilmstrip(
   character: Character,
   spec: AnimationSpec,
   referenceImageBase64?: string,
-  userPrompt?: string
+  userPrompt?: string,
+  options?: { poseBookend?: boolean }
 ): Promise<string> {
   const client = getClient();
-  const n = spec.frameCount;
+  // When the caller bookends the clip with the real static pose (first + last
+  // frame), the model only needs to draw the IN-BETWEEN motion, so it draws two
+  // fewer frames.
+  const poseBookend = options?.poseBookend ?? false;
+  const n = poseBookend ? Math.max(2, spec.frameCount - 2) : spec.frameCount;
   // The (pre-filled, user-editable) prompt IS the motion description; fall back to
   // the action's curated default motion when the user cleared it.
   const motion = userPrompt && userPrompt.trim() ? userPrompt.trim() : spec.motion;
@@ -231,18 +236,30 @@ export async function generateAnimationFilmstrip(
     ? `IDENTITY LOCK (a reference image of this exact character in the "${spec.displayName}" pose is attached above): reproduce the SAME character in every frame — identical face, hair, skin tone, outfit, colors, accessories, and proportions — and keep the SAME body facing/orientation as the reference.`
     : `IDENTITY LOCK: reproduce this EXACT character in every frame — same outfit, colors, accessories, hair, and proportions.`;
 
+  // The rest pose that opens and closes the clip is supplied separately (the real
+  // static pose becomes the first + last frame), so the model draws only the
+  // in-between motion and must NOT redraw the neutral rest/start pose here.
+  const bookendClause = poseBookend
+    ? `\nSTART/END HANDLING (IMPORTANT): The finished animation begins AND ends on the character's neutral rest pose${useReferenceImage ? ' (the attached reference)' : ''}, which is added separately as the first and last frame. Draw ONLY the ${n} IN-BETWEEN frames showing the character MID-motion — frame 1 already has the action underway and the last frame is the extreme just before settling back to rest. Do NOT include the neutral rest/start pose itself in these ${n} frames.`
+    : '';
+  const loopClause = spec.loop
+    ? poseBookend
+      ? 'flows smoothly out of the rest pose and back toward it'
+      : 'loops smoothly back to the first frame'
+    : 'plays once from start to finish';
+
   const prompt = `Generate a SINGLE wide horizontal sprite-strip image for a 2D game animation: exactly ${n} frames of the character performing "${spec.displayName}", arranged left to right in ${n} equal-width cells.
 
 ${identity}
 ${buildCharacterPrompt(character)}
-
+${bookendClause}
 DIRECTION LOCK (CRITICAL — this is what makes it read as motion instead of turning):
 - EVERY frame shows the character in the EXACT SAME facing: a ${facing}.
 - The character NEVER turns around, NEVER flips to face the other way, NEVER rotates to face the viewer/camera, and is NEVER mirrored. Keep the identical facing in all ${n} frames.
 - ONLY the limbs and body move through the motion below. The overall body orientation, scale, and ground line stay identical in every frame.
 
 MOTION (what changes across the ${n} frames, left to right): ${motion}
-Spread this motion evenly across the ${n} frames so it ${spec.loop ? 'loops smoothly back to the first frame' : 'plays once from start to finish'}.
+Spread this motion evenly across the ${n} frames so it ${loopClause}.
 
 FILMSTRIP LAYOUT (CRITICAL):
 - ONE wide image, ${n} frames in a single horizontal row, left to right, each frame the same width (overall aspect ratio about ${n}:1).

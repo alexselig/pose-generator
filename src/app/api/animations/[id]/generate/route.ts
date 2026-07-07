@@ -6,6 +6,7 @@ import {
   saveAnimationFrame,
   clearAnimationFrames,
   sliceFilmstrip,
+  normalizePoseFrame,
 } from '@/lib/animations';
 import { generateAnimationFilmstrip } from '@/lib/gemini';
 import { getAnimationSpec } from '@/lib/types';
@@ -45,13 +46,28 @@ export async function POST(
     // Prefer the character's STATIC POSE image for this action as the reference —
     // it anchors both identity and the exact stance/facing to animate. Fall back
     // to the persisted reference, then the first inline reference.
+    const actionPose = getPoseImage(character.id, clip.action);
     const reference =
-      getPoseImage(character.id, clip.action) ||
+      actionPose ||
       getPoseImage(character.id, 'reference_0') ||
       (character.referenceImages.length > 0 ? character.referenceImages[0] : undefined);
 
-    const strip = await generateAnimationFilmstrip(character, spec, reference, userPrompt);
-    const frameBuffers = await sliceFilmstrip(strip, clip.canvasWidth, clip.canvasHeight, clip.frameCount);
+    // Bookend the clip with that exact static pose so the animation STARTS and
+    // ENDS on the pose (pixel-identical ends) and the model only draws the
+    // in-between motion. Only the action's own pose is used as the bookend — a
+    // generic front-facing reference wouldn't match the side-facing motion.
+    const poseFrame = actionPose
+      ? await normalizePoseFrame(actionPose, clip.canvasWidth, clip.canvasHeight).catch(() => null)
+      : null;
+
+    const inBetween = poseFrame ? Math.max(2, clip.frameCount - 2) : clip.frameCount;
+    const strip = await generateAnimationFilmstrip(character, spec, reference, userPrompt, {
+      poseBookend: !!poseFrame,
+    });
+    const motionFrames = await sliceFilmstrip(strip, clip.canvasWidth, clip.canvasHeight, inBetween);
+
+    // Same pose buffer at both ends → first and last frames are identical.
+    const frameBuffers = poseFrame ? [poseFrame, ...motionFrames, poseFrame] : motionFrames;
 
     // Drop any frames from a previous (possibly longer) generation so the on-disk
     // set matches this clip exactly — no orphaned tail frames left behind.

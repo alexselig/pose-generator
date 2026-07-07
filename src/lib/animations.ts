@@ -6,6 +6,13 @@ const DATA_DIR = process.env.DATA_DIR || './data';
 const ANIM_CLIPS_DIR = path.join(DATA_DIR, 'animations');
 const ANIM_FRAMES_DIR = path.join(DATA_DIR, 'animation-frames');
 
+// Shared figure-normalization targets. The slicer and the pose-bookend normalizer
+// BOTH place a figure at this height/baseline so a static pose frame lines up
+// exactly with the sliced motion frames (same apparent size + ground line).
+const FIGURE_TARGET_HEIGHT_FRAC = 0.82; // figure height as a fraction of the canvas
+const FIGURE_MAX_WIDTH_FRAC = 0.96; // clamp so the widest figure still fits
+const BASELINE_PAD_FRAC = 0.08; // gap from the canvas bottom to the feet
+
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
@@ -249,11 +256,11 @@ export async function sliceFilmstrip(
   // One shared scale keeps every figure the same size (preserves the walk bob),
   // clamped so the widest figure still fits the canvas; feet bottom-align to a
   // fixed ground line.
-  const targetHeight = Math.round(canvasHeight * 0.82);
+  const targetHeight = Math.round(canvasHeight * FIGURE_TARGET_HEIGHT_FRAC);
   const maxFigureHeight = Math.max(...boxes.map(b => b.height));
   const maxFigureWidth = Math.max(...boxes.map(b => b.width));
-  const scale = Math.min(targetHeight / maxFigureHeight, (canvasWidth * 0.96) / maxFigureWidth);
-  const baselinePad = Math.round(canvasHeight * 0.08);
+  const scale = Math.min(targetHeight / maxFigureHeight, (canvasWidth * FIGURE_MAX_WIDTH_FRAC) / maxFigureWidth);
+  const baselinePad = Math.round(canvasHeight * BASELINE_PAD_FRAC);
 
   const frames: Buffer[] = [];
   for (const b of boxes) {
@@ -276,4 +283,105 @@ export async function sliceFilmstrip(
     frames.push(frame);
   }
   return frames;
+}
+
+// Normalize a character's STATIC POSE image into a single animation frame that
+// lines up with the sliced motion frames, so a clip can start AND end on the
+// exact pose. The pose sprites are drawn on a transparent background, so we key
+// off their own alpha (with a near-white flood-fill fallback for the rare opaque
+// render), find the figure's tight bbox, then scale + bottom-align it onto the
+// canvas using the SAME height/baseline targets the slicer uses.
+export async function normalizePoseFrame(
+  poseBase64: string,
+  canvasWidth: number,
+  canvasHeight: number
+): Promise<Buffer | null> {
+  const sharp = (await import('sharp')).default;
+  const input = Buffer.from(poseBase64, 'base64');
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width, height } = info; // channels is 4 after ensureAlpha
+  if (!width || !height) return null;
+  const npx = width * height;
+
+  // Figure alpha: prefer the sprite's own transparency; if it's basically opaque
+  // (an accidental solid background), flood-fill the near-white border region to
+  // real alpha the same way the filmstrip slicer does.
+  const alpha = new Uint8Array(npx);
+  let transparent = 0;
+  for (let i = 0; i < npx; i++) {
+    const a = data[i * 4 + 3];
+    alpha[i] = a;
+    if (a < 40) transparent++;
+  }
+  if (transparent < npx * 0.02) {
+    alpha.fill(255);
+    const isBg = (i: number): boolean => {
+      const o = i * 4;
+      const r = data[o], g = data[o + 1], b = data[o + 2];
+      const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
+      return mn >= 232 && mx - mn <= 18;
+    };
+    const seen = new Uint8Array(npx);
+    const stack: number[] = [];
+    const visit = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      const i = y * width + x;
+      if (seen[i]) return;
+      seen[i] = 1;
+      if (isBg(i)) { alpha[i] = 0; stack.push(i); }
+    };
+    for (let x = 0; x < width; x++) { visit(x, 0); visit(x, height - 1); }
+    for (let y = 0; y < height; y++) { visit(0, y); visit(width - 1, y); }
+    while (stack.length) {
+      const i = stack.pop() as number;
+      const x = i % width, y = (i / width) | 0;
+      visit(x + 1, y); visit(x - 1, y); visit(x, y + 1); visit(x, y - 1);
+    }
+  }
+
+  // Tight bbox of the figure.
+  let minx = width, maxx = -1, miny = height, maxy = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (alpha[y * width + x] > 24) {
+        if (x < minx) minx = x;
+        if (x > maxx) maxx = x;
+        if (y < miny) miny = y;
+        if (y > maxy) maxy = y;
+      }
+    }
+  }
+  if (maxx < minx || maxy < miny) return null;
+
+  // Keyed RGBA (original colors + computed alpha) so trimming keeps clean edges.
+  const keyed = Buffer.alloc(npx * 4);
+  for (let i = 0; i < npx; i++) {
+    keyed[i * 4] = data[i * 4];
+    keyed[i * 4 + 1] = data[i * 4 + 1];
+    keyed[i * 4 + 2] = data[i * 4 + 2];
+    keyed[i * 4 + 3] = alpha[i];
+  }
+  const keyedPng = await sharp(keyed, { raw: { width, height, channels: 4 } }).png().toBuffer();
+
+  const bw = maxx - minx + 1;
+  const bh = maxy - miny + 1;
+  const targetHeight = Math.round(canvasHeight * FIGURE_TARGET_HEIGHT_FRAC);
+  const scale = Math.min(targetHeight / bh, (canvasWidth * FIGURE_MAX_WIDTH_FRAC) / bw);
+  const newW = Math.max(1, Math.round(bw * scale));
+  const newH = Math.max(1, Math.round(bh * scale));
+  const figure = await sharp(keyedPng)
+    .extract({ left: minx, top: miny, width: bw, height: bh })
+    .resize(newW, newH, { fit: 'fill' })
+    .png()
+    .toBuffer();
+
+  const baselinePad = Math.round(canvasHeight * BASELINE_PAD_FRAC);
+  const left = Math.round((canvasWidth - newW) / 2);
+  const top = Math.max(0, canvasHeight - baselinePad - newH);
+  return sharp({
+    create: { width: canvasWidth, height: canvasHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite([{ input: figure, left: Math.max(0, left), top }])
+    .png()
+    .toBuffer();
 }
