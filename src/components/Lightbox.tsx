@@ -13,6 +13,11 @@ export interface LightboxImage {
 // are both square, so a single square box matches all three.
 const MEDIA_BOX = 'min(74vw, 52vh)';
 
+// The pose name caption. Rendered directly under the media in BOTH the static and
+// animation views so the label reads the same and sits in the same spot when you
+// toggle between them (the animation inherits its pose's name).
+const NAME_LABEL_STYLE: React.CSSProperties = { font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' };
+
 export interface LightboxAnimation {
   clipId: string;
   frameCount: number;
@@ -114,7 +119,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
 
         {showingAnimation ? (
           anim ? (
-            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} />
+            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} label={img.alt} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
@@ -127,6 +132,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
                   </span>
                 </div>
               </div>
+              <span style={NAME_LABEL_STYLE}>{img.alt}</span>
             </div>
           )
         ) : (
@@ -141,7 +147,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
               alt={img.alt}
               style={{ maxWidth: canAnimate ? MEDIA_BOX : '80vw', maxHeight: canAnimate ? '52vh' : (onRegenerate ? '58vh' : '72vh'), objectFit: 'contain', borderRadius: '12px', boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}
             />
-            <span style={{ font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' }}>{img.alt}</span>
+            <span style={NAME_LABEL_STYLE}>{img.alt}</span>
           </div>
         )}
 
@@ -174,7 +180,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
   );
 }
 
-function AnimationView({ anim, measureRef }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void }) {
+function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void; label: string }) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
 
@@ -190,13 +196,14 @@ function AnimationView({ anim, measureRef }: { anim: LightboxAnimation; measureR
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
-      <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation · {anim.displayName}</span>
+      <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
       <div ref={measureRef} style={{ position: 'relative', width: box, height: box, borderRadius: '12px', overflow: 'hidden', background: checker, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }}>
         {Array.from({ length: anim.frameCount }, (_, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={i} src={url(i)} alt={`frame ${i + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: i === frame ? 1 : 0 }} />
         ))}
       </div>
+      <span style={NAME_LABEL_STYLE}>{label}</span>
       <button
         onClick={() => setPlaying(p => !p)}
         style={{ background: 'rgba(247,244,238,.1)', border: '1px solid rgba(247,244,238,.18)', color: 'var(--canvas)', borderRadius: 'var(--radius-btn)', padding: '7px 16px', font: '600 12px var(--font-body)', cursor: 'pointer' }}
