@@ -76,16 +76,22 @@ export async function generatePoseImage(
 
   const topDown = perspective === 'top_down';
 
-  // nano-banana copies the composition of an attached image very strongly, so a
-  // front-facing reference portrait drags top-down renders back to an eye-level
-  // view (verified: with-ref top-down kept coming out front-facing). For top-down
-  // we therefore drive identity from the rich text description instead of the
-  // reference image — the face is barely visible overhead anyway, and outfit,
-  // colors, accessories, and silhouette (all in the text) carry the identity.
-  const useReferenceImage = referenceImageBase64 && !topDown;
+  // Identity-first: the character's reference portrait is the authoritative source
+  // of identity (face, hair color, age, outfit), so we attach it for EVERY
+  // perspective — including top-down. A front-facing reference does pull top-down
+  // renders toward a shallower angle, but losing the character's identity entirely
+  // (a grey-haired elder rendered as a generic brunette) is far worse than a softer
+  // camera, so identity wins; the prompt still pushes the overhead camera hard.
+  const useReferenceImage = !!referenceImageBase64;
 
   const referenceSection = useReferenceImage
-    ? `\nIDENTITY LOCK (CRITICAL — a reference image of this exact character is attached above):
+    ? topDown
+      ? `\nIDENTITY LOCK (CRITICAL — a reference image of this EXACT character is attached above):
+- Reproduce the SAME person: identical face, HAIR COLOR and hairstyle, skin tone, facial age, glasses, outfit, color palette, and accessories as the reference image.
+- Do NOT redesign, restyle, age, or recolor the character. If the reference is an older grey-haired person, they MUST stay older and grey-haired.
+- ONLY the camera angle and pose change: redraw this same character from the steep top-down overhead view described below.
+`
+      : `\nIDENTITY LOCK (CRITICAL — a reference image of this exact character is attached above):
 - Reproduce the SAME character shown in the reference image: identical face, hairstyle, skin tone, outfit, color palette, accessories, and body proportions.
 - Do NOT redesign, restyle, age, or reinterpret the character — only the POSE may change.
 - The reference image is authoritative: if any detail below conflicts with it, follow the image.
@@ -158,12 +164,12 @@ Generate ONLY the character in this pose with a transparent/empty background. No
 
   // Present the reference image FIRST so it strongly anchors the character's
   // identity, then follow with the detailed pose prompt. Part ordering matters
-  // for image models — a buried reference gets under-weighted. Skipped for
-  // top-down (see useReferenceImage above): the front-facing portrait would drag
-  // the render back to eye-level.
+  // for image models — a buried reference gets under-weighted.
   if (useReferenceImage) {
     parts.push({
-      text: 'Reference image of the character (canonical appearance). Keep the character identical to this image and change only the pose:',
+      text: topDown
+        ? 'Reference image of the character (canonical appearance). Keep the character IDENTICAL to this image — same face, hair color, age, outfit — and change ONLY the pose and the camera angle (redraw from the top-down overhead view described below):'
+        : 'Reference image of the character (canonical appearance). Keep the character identical to this image and change only the pose:',
     });
     parts.push({
       inlineData: {
