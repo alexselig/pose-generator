@@ -16,7 +16,7 @@ const MEDIA_BOX = 'min(74vw, 52vh)';
 // The pose name caption. Rendered directly under the media in BOTH the static and
 // animation views so the label reads the same and sits in the same spot when you
 // toggle between them (the animation inherits its pose's name).
-const NAME_LABEL_STYLE: React.CSSProperties = { font: '500 13px var(--font-mono)', color: 'rgba(247,244,238,.85)' };
+const NAME_LABEL_STYLE: React.CSSProperties = { font: '500 19.5px var(--font-mono)', color: 'rgba(247,244,238,.85)' };
 
 // Playback speed multipliers for the animation preview. The base playback runs at
 // half the clip's fps, and the lower-right button cycles 1x -> 2x -> 4x over it.
@@ -145,7 +145,6 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
             <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} label={img.alt} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
               <div ref={measureRef} style={{ position: 'relative', width: MEDIA_BOX, height: MEDIA_BOX, borderRadius: '12px', overflow: 'hidden', border: '1.5px dashed rgba(247,244,238,.28)', background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.src} alt={img.alt} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: animGenerating ? 0.3 : 0.5 }} />
@@ -160,9 +159,6 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
           )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            {canAnimate && (
-              <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Static pose</span>
-            )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={measureRef}
@@ -228,7 +224,6 @@ function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; m
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
-      <span style={{ font: '600 10px var(--font-body)', letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(247,244,238,.55)' }}>Animation</span>
       <div
         ref={measureRef}
         onClick={() => setPlaying(p => !p)}
@@ -315,7 +310,7 @@ function ApprovedRow({ widthStyle, onCancel }: { widthStyle: React.CSSProperties
         onMouseLeave={() => setHover(false)}
         title="Cancel approval"
         aria-label="Cancel approval"
-        style={{ flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hover ? 'rgba(247,244,238,.14)' : 'transparent', color: 'var(--canvas)', border: '1px solid rgba(247,244,238,.4)', borderRadius: 'var(--radius-btn)', font: '600 17px var(--font-body)', lineHeight: 1, cursor: 'pointer', transition: 'background .15s ease' }}
+        style={{ flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hover ? '#c0392b' : 'transparent', color: hover ? '#fff' : 'var(--canvas)', border: `1px solid ${hover ? '#c0392b' : 'rgba(247,244,238,.4)'}`, borderRadius: 'var(--radius-btn)', font: '600 17px var(--font-body)', lineHeight: 1, cursor: 'pointer', transition: 'background .15s ease, color .15s ease, border-color .15s ease' }}
       >
         ✕
       </button>
