@@ -168,6 +168,7 @@ export interface AnimationFrame {
   index: number; // 0-based position within the cycle
   imagePath?: string; // sliced frame written to data/animations/<slug>/<action>/frame_NN.png
   status: 'pending' | 'generated';
+  hidden?: boolean; // hidden from the animation (skipped in playback + export), not deleted
 }
 
 export interface AnimationClip {

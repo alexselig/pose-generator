@@ -153,7 +153,27 @@ export default function CharacterDetailPage({
     const action = poseActionSlug(image.name);
     const clip = animations.find(a => a.action === action && a.status === 'generated' && a.frameCount > 0);
     if (!clip) return null;
-    return { clipId: clip.id, frameCount: clip.frameCount, fps: clip.fps, updatedAt: clip.updatedAt, displayName: clip.displayName, approved: clip.approved ?? false };
+    return { clipId: clip.id, frameCount: clip.frameCount, fps: clip.fps, updatedAt: clip.updatedAt, displayName: clip.displayName, approved: clip.approved ?? false, hiddenFrames: clip.frames.filter(f => f.hidden).map(f => f.index) };
+  };
+
+  const handleToggleAnimationFrame = async (clipId: string, frameIndex: number, hidden: boolean) => {
+    const flip = (h: boolean) => setAnimations(prev => prev.map(c =>
+      c.id === clipId ? { ...c, frames: c.frames.map(f => (f.index === frameIndex ? { ...f, hidden: h } : f)) } : c
+    ));
+    flip(hidden);
+    try {
+      const res = await fetch(`/api/animations/${clipId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frameIndex, hidden }),
+      });
+      if (!res.ok) throw new Error();
+      const updated: AnimationClip = await res.json();
+      setAnimations(prev => prev.map(c => (c.id === updated.id ? updated : c)));
+    } catch {
+      flip(!hidden);
+      showToast('Failed to update frame');
+    }
   };
 
   const handleApproveAnimation = async (imageIndex: number, approved: boolean) => {
@@ -360,7 +380,7 @@ export default function CharacterDetailPage({
         <button onClick={handleArchive} className="pf-textaction" style={textAction}>{character.archived ? 'Unarchive' : 'Archive'}</button>
         <button onClick={handleDelete} style={{ ...textAction, color: 'var(--accent)', fontWeight: 600 }}>Delete</button>
       </div>
-      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} resolveAnimation={resolveAnimation} onGenerateAnimation={handleGenerateAnimation} onApproveAnimation={handleApproveAnimation} animationPromptFor={animationPromptFor} regenerating={regenerating} animGenerating={animGenerating} />}
+      {lightbox.state && <Lightbox images={lightbox.state.images} startIndex={lightbox.state.startIndex} onClose={lightbox.close} onRegenerate={poseSet ? handleLightboxRegenerate : undefined} resolveAnimation={resolveAnimation} onGenerateAnimation={handleGenerateAnimation} onApproveAnimation={handleApproveAnimation} onToggleAnimationFrame={handleToggleAnimationFrame} animationPromptFor={animationPromptFor} regenerating={regenerating} animGenerating={animGenerating} />}
     </div>
   );
 }

@@ -16,8 +16,7 @@ function frameFileName(prefix: string, action: string, index: number): string {
 
 // Godot 4 SpriteFrames resource (.tres). Extract the pack into the Godot project
 // root so the res:// paths resolve, then drop the .tres onto an AnimatedSprite2D.
-function buildSpriteFramesTres(clip: AnimationClip, prefix: string, resDir: string): string {
-  const n = clip.frameCount;
+function buildSpriteFramesTres(clip: AnimationClip, prefix: string, resDir: string, n: number): string {
   const extResources: string[] = [];
   const frameEntries: string[] = [];
   for (let i = 0; i < n; i++) {
@@ -69,12 +68,17 @@ export async function exportAnimationPackage(
   const folderPath = `characters/${prefix}/${clip.action}`;
   const folder = zip.folder(folderPath)!;
 
+  // Skip hidden frames and renumber the kept frames contiguously (frame_00..NN)
+  // so the sheet, .tres, and manifest reference a clean sequence.
   const frames: Buffer[] = [];
+  let k = 0;
   for (let i = 0; i < clip.frameCount; i++) {
+    if (clip.frames.find(f => f.index === i)?.hidden) continue;
     const buf = readAnimationFrame(clip.characterName, clip.action, i);
     if (!buf) continue;
     frames.push(buf);
-    folder.file(frameFileName(prefix, clip.action, i), buf);
+    folder.file(frameFileName(prefix, clip.action, k), buf);
+    k++;
   }
 
   if (frames.length === 0) {
@@ -85,7 +89,7 @@ export async function exportAnimationPackage(
   folder.file(`${prefix}_${clip.action}_sheet.png`, sheet);
 
   const resDir = `res://${folderPath}`;
-  folder.file(`${prefix}_${clip.action}.tres`, buildSpriteFramesTres(clip, prefix, resDir));
+  folder.file(`${prefix}_${clip.action}.tres`, buildSpriteFramesTres(clip, prefix, resDir, frames.length));
 
   const manifest = {
     character_name: clip.characterName,

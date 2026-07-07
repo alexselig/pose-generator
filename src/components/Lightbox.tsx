@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface LightboxImage {
   src: string;
@@ -29,6 +29,7 @@ export interface LightboxAnimation {
   updatedAt: string;
   displayName: string;
   approved?: boolean;
+  hiddenFrames?: number[];
 }
 
 interface LightboxProps {
@@ -39,12 +40,13 @@ interface LightboxProps {
   resolveAnimation?: (index: number) => LightboxAnimation | null;
   onGenerateAnimation?: (index: number, prompt: string) => Promise<void>;
   onApproveAnimation?: (index: number, approved: boolean) => Promise<void>;
+  onToggleAnimationFrame?: (clipId: string, frameIndex: number, hidden: boolean) => Promise<void>;
   animationPromptFor?: (index: number) => string;
   regenerating?: boolean;
   animGenerating?: boolean;
 }
 
-export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, onApproveAnimation, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
+export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAnimation, onGenerateAnimation, onApproveAnimation, onToggleAnimationFrame, animationPromptFor, regenerating, animGenerating }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
   const [view, setView] = useState<'static' | 'animation'>('static');
   // Static-pose approval is UI-only; existing poses are assumed approved, so this
@@ -142,7 +144,7 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
 
         {showingAnimation ? (
           anim ? (
-            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} label={img.alt} />
+            <AnimationView key={`${anim.clipId}:${anim.updatedAt}`} anim={anim} measureRef={measureRef} label={img.alt} onToggleFrame={onToggleAnimationFrame} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <div ref={measureRef} style={{ position: 'relative', width: MEDIA_BOX, height: MEDIA_BOX, borderRadius: '12px', overflow: 'hidden', border: '1.5px dashed rgba(247,244,238,.28)', background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px' }}>
@@ -204,19 +206,47 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
   );
 }
 
-function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void; label: string }) {
+function AnimationView({ anim, measureRef, label, onToggleFrame }: { anim: LightboxAnimation; measureRef?: (el: HTMLElement | null) => void; label: string; onToggleFrame?: (clipId: string, frameIndex: number, hidden: boolean) => Promise<void> }) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speedIdx, setSpeedIdx] = useState(0);
   const speed = SPEEDS[speedIdx];
+  // Locally track hidden frames (seeded from the persisted set) so hide/restore is
+  // instant; changes persist in the background via onToggleFrame.
+  const [hiddenSet, setHiddenSet] = useState<Set<number>>(() => new Set(anim.hiddenFrames ?? []));
+
+  // Frames that actually play, in order (hidden frames are skipped).
+  const visible = useMemo(() => {
+    const v: number[] = [];
+    for (let i = 0; i < anim.frameCount; i++) if (!hiddenSet.has(i)) v.push(i);
+    return v;
+  }, [anim.frameCount, hiddenSet]);
+
+  // Keep the shown frame on a visible one (e.g. after hiding the current frame).
+  useEffect(() => {
+    if (visible.length && !visible.includes(frame)) setFrame(visible[0]);
+  }, [visible, frame]);
 
   useEffect(() => {
-    if (!playing || anim.frameCount <= 1) return;
+    if (!playing || visible.length <= 1) return;
     // Base playback runs at half the clip's fps; the speed button multiplies it (1x/2x/4x).
     const effectiveFps = (anim.fps / 2) * speed;
-    const t = setInterval(() => setFrame(f => (f + 1) % anim.frameCount), Math.max(40, 1000 / effectiveFps));
+    const t = setInterval(() => setFrame(f => {
+      const pos = visible.indexOf(f);
+      return visible[pos < 0 ? 0 : (pos + 1) % visible.length];
+    }), Math.max(40, 1000 / effectiveFps));
     return () => clearInterval(t);
-  }, [playing, anim.frameCount, anim.fps, speed]);
+  }, [playing, visible, anim.fps, speed]);
+
+  const toggleFrame = (i: number) => {
+    const nextHidden = !hiddenSet.has(i);
+    setHiddenSet(prev => {
+      const n = new Set(prev);
+      if (nextHidden) n.add(i); else n.delete(i);
+      return n;
+    });
+    void onToggleFrame?.(anim.clipId, i, nextHidden);
+  };
 
   const url = (i: number) => `/api/animations/${anim.clipId}/frames/${i}?v=${encodeURIComponent(anim.updatedAt)}`;
   const box = MEDIA_BOX;
@@ -250,17 +280,29 @@ function AnimationView({ anim, measureRef, label }: { anim: LightboxAnimation; m
       <span style={NAME_LABEL_STYLE}>{label}</span>
       {/* Key frames — always shown below the animation. Click to scrub. */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 'min(88vw, 640px)' }}>
-        {Array.from({ length: anim.frameCount }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => { setPlaying(false); setFrame(i); }}
-            title={`Frame ${i + 1}`}
-            style={{ width: '58px', height: '58px', padding: '3px', borderRadius: '8px', cursor: 'pointer', background: checker, border: i === frame ? '2px solid var(--accent)' : '1px solid rgba(247,244,238,.18)' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url(i)} alt={`frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-          </button>
-        ))}
+        {Array.from({ length: anim.frameCount }, (_, i) => {
+          const hidden = hiddenSet.has(i);
+          return (
+            <div key={i} style={{ position: 'relative', width: '58px', height: '58px' }}>
+              <button
+                onClick={() => { setPlaying(false); setFrame(i); }}
+                title={`Frame ${i + 1}`}
+                style={{ width: '58px', height: '58px', padding: '3px', borderRadius: '8px', cursor: 'pointer', background: checker, border: i === frame ? '2px solid var(--accent)' : '1px solid rgba(247,244,238,.18)', opacity: hidden ? 0.32 : 1 }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url(i)} alt={`frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); toggleFrame(i); }}
+                title={hidden ? 'Add this frame back' : 'Hide this frame'}
+                aria-label={hidden ? 'Add this frame back' : 'Hide this frame'}
+                style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hidden ? '#3f7d4e' : 'rgba(26,23,20,.82)', color: '#fff', border: '1px solid rgba(247,244,238,.55)', font: '700 13px var(--font-body)', lineHeight: 1, cursor: 'pointer' }}
+              >
+                {hidden ? '+' : '×'}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
