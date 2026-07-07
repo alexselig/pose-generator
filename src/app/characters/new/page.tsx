@@ -83,7 +83,7 @@ export default function NewCharacterWizard() {
       const res = await fetch('/api/characters/generate-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: genPrompt, name: draft.name || 'character' }),
+        body: JSON.stringify({ prompt: genPrompt, name: draft.name || 'character', designReferences: designRefBase64 }),
       });
       if (!res.ok) {
         const err = await res.json();
