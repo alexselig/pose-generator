@@ -30,38 +30,39 @@ export default function ExportPage({
 
     const load = async () => {
       setLoading(true);
-      const [characterRes, poseSetRes] = await Promise.all([
-        fetch(`/api/characters/${id}`),
-        fetch(`/api/characters/${id}/pose-sets/latest`),
-      ]);
+      try {
+        const [characterRes, poseSetRes] = await Promise.all([
+          fetch(`/api/characters/${id}`),
+          fetch(`/api/characters/${id}/pose-sets/latest`),
+        ]);
 
-      if (!characterRes.ok) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
+        if (!characterRes.ok) return;
 
-      const characterData: Character = await characterRes.json();
-      if (cancelled) return;
-      setCharacter(characterData);
-      setPrefix(slugify(characterData.name));
-
-      if (poseSetRes.ok) {
-        const poseSetData: PoseSet | null = await poseSetRes.json();
+        const characterData: Character = await characterRes.json();
         if (cancelled) return;
-        if (poseSetData) {
-          setPoseSet(poseSetData);
-          setCanvasSize(poseSetData.canvasWidth || 384);
+        setCharacter(characterData);
+        setPrefix(slugify(characterData.name));
+
+        if (poseSetRes.ok) {
+          const poseSetData: PoseSet | null = await poseSetRes.json();
+          if (cancelled) return;
+          if (poseSetData) {
+            setPoseSet(poseSetData);
+            setCanvasSize(poseSetData.canvasWidth || 384);
+          }
         }
-      }
 
-      // Fetch all pose sets to merge poses from multiple generations
-      const allRes = await fetch(`/api/characters/${id}/pose-sets`);
-      if (allRes.ok && !cancelled) {
-        const all: PoseSet[] = await allRes.json();
-        setAllPoseSets(all);
+        // Fetch all pose sets to merge poses from multiple generations
+        const allRes = await fetch(`/api/characters/${id}/pose-sets`);
+        if (allRes.ok && !cancelled) {
+          const all: PoseSet[] = await allRes.json();
+          setAllPoseSets(all);
+        }
+      } catch {
+        // Network error — fall through; loading is cleared in finally.
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (!cancelled) setLoading(false);
     };
 
     load();
@@ -89,24 +90,31 @@ export default function ExportPage({
   }, [poseSet, allPoseSets]);
 
   const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
-    if (!poseSet) return;
     const pose = generatedPoses[imageIndex];
     if (!pose) return;
+    // The merged list spans every pose set, so regenerate against the set that
+    // actually contains this pose (not just the latest) or the API 404s.
+    const sourceSet = allPoseSets.find(ps => ps.poses.some(p => p.id === pose.id)) || poseSet;
+    if (!sourceSet) return;
     setRegenerating(true);
     try {
       const res = await fetch('/api/generate', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ poseSetId: poseSet.id, poseId: pose.id, prompt: prompt || undefined }),
+        body: JSON.stringify({ poseSetId: sourceSet.id, poseId: pose.id, prompt: prompt || undefined }),
       });
       if (res.ok) {
         const result = await res.json();
         if (result.imageData) {
           lightbox.updateImage(imageIndex, `data:image/png;base64,${result.imageData}`);
         }
-        // Reload pose set to reflect updates
-        const psRes = await fetch(`/api/characters/${id}/pose-sets/latest`);
+        // Reload pose sets (latest + all) to reflect the regenerated pose.
+        const [psRes, allRes] = await Promise.all([
+          fetch(`/api/characters/${id}/pose-sets/latest`),
+          fetch(`/api/characters/${id}/pose-sets`),
+        ]);
         if (psRes.ok) setPoseSet(await psRes.json());
+        if (allRes.ok) setAllPoseSets(await allRes.json());
         showToast('Pose regenerated');
       }
     } catch {

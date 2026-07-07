@@ -61,18 +61,22 @@ export default function CharacterDetailPage({
   const groups = useMemo(() => listGroups(allCharacters), [allCharacters]);
 
   const currentPoses = useMemo(() => {
+    const charSlug = character ? character.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
     return images.filter(img => !img.isArchive).map(img => {
-      const displayName = img.name.replace(/\.png$/, '').replace(/^.*_/, '');
+      const base = img.name.replace(/\.png$/, '');
+      // Strip the character-slug prefix so multi-word pose names survive
+      // (e.g. "atlas_silvervane_heavy_attack" -> "heavy_attack").
+      const displayName = charSlug && base.startsWith(`${charSlug}_`) ? base.slice(charSlug.length + 1) : base.replace(/^.*?_/, '');
       return { ...img, displayName };
     });
-  }, [images]);
+  }, [images, character]);
 
   const handleLightboxRegenerate = async (imageIndex: number, prompt: string) => {
     if (!poseSet) return;
     // Match the image filename to a pose in the pose set
     const image = currentPoses[imageIndex];
     if (!image) return;
-    const poseName = image.name.replace(/\.png$/, '').replace(/^.*_/, '');
+    const poseName = poseActionSlug(image.name);
     const pose = poseSet.poses.find(p => p.name === poseName);
     if (!pose) return;
 
@@ -248,15 +252,28 @@ export default function CharacterDetailPage({
   };
 
   const handleArchive = async () => {
-    if (!confirm('Archive this character?')) return;
-    const res = await fetch(`/api/characters/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'archive' }),
-    });
+    if (!character) return;
+    const archived = !!character.archived;
+    if (!confirm(archived ? 'Unarchive this character?' : 'Archive this character?')) return;
+    const res = archived
+      ? await fetch(`/api/characters/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived: false }),
+        })
+      : await fetch(`/api/characters/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'archive' }),
+        });
     if (res.ok) {
-      showToast('Character archived');
-      router.push('/characters');
+      if (archived) {
+        showToast('Character unarchived');
+        setCharacter(c => (c ? { ...c, archived: false } : c));
+      } else {
+        showToast('Character archived');
+        router.push('/characters');
+      }
     }
   };
 
