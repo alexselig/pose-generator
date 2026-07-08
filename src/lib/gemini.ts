@@ -374,6 +374,10 @@ IDENTITY LOCK (CRITICAL):
 - Each named character must match their own reference image — same face, hair, skin tone, outfit, colors, accessories, and body proportions.
 - Do NOT blend two characters into one, do NOT give a character another's outfit/hair/colors, and do NOT add extra background people. EXACTLY ${n} distinct characters, no duplicates.
 
+ANATOMY (CRITICAL):
+- Give every character clean, correct human anatomy: exactly TWO arms, two hands, two legs, and one head each. Never draw extra, duplicated, merged, or floating limbs — not even when a character holds an item, gestures, reaches, or is partly overlapped by another character or object.
+- A hand that holds or points at something is still one of that character's two hands; do not add a spare arm to do it.
+
 STYLE LOCK:
 - One shared art style for every character and the background: ${sharedStyle}.
 - Unified, coherent lighting, palette, and rendering across all characters and the environment so no one looks pasted in.
@@ -460,9 +464,11 @@ export async function editSceneImage(
     },
   });
 
-  const prompt = `The image above is an existing illustrated 2D-game scene. Apply ONLY this change: ${instruction}.
+  const prompt = `The image above is an existing illustrated 2D-game scene. Apply this change: ${instruction}.
 
-Keep EVERYTHING else identical — the same characters with the exact same faces, hair, outfits, colors, and proportions; the same overall composition, staging, and camera framing; and the same art style, palette, and rendering. Do not add or remove characters, do not restyle or redraw the characters, and do not add any text, captions, or watermarks. Output the full edited scene image.`;
+Preserve each character's IDENTITY (the same faces, hair, skin tone, outfits, colors, and accessories), the overall composition and camera framing, and the art style, palette, and rendering. Do not add or remove characters, do not swap or restyle their designs, and do not add any text, captions, or watermarks.
+
+You MAY redraw parts of the image where needed to apply the requested change or to CORRECT MISTAKES. In particular, fix anatomy: every character must have exactly TWO arms, two hands, two legs, and one head — remove any extra, duplicated, merged, or floating limbs even if they are present in the current image. Output the full edited scene image.`;
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
     { text: 'Current scene to edit:' },

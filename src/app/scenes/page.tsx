@@ -65,9 +65,8 @@ export default function ScenesPage() {
     }
   };
 
-  const regenerate = async () => {
+  const runEdit = async (delta: string) => {
     if (!active) return;
-    const delta = editText.trim();
     setGenerating(true);
     try {
       const genRes = await fetch(`/api/scenes/${active.id}/generate`, {
@@ -87,6 +86,12 @@ export default function ScenesPage() {
       setGenerating(false);
     }
   };
+
+  const regenerate = () => runEdit(editText.trim());
+
+  const fixLimbs = () => runEdit(
+    'Fix the character anatomy: each character must have exactly two arms, two hands, and two legs — remove any extra, duplicated, merged, or floating limbs. Keep every character\u2019s identity, the composition, and the art style the same.'
+  );
 
   const copyPrompt = async () => {
     if (!active?.prompt) return;
@@ -261,8 +266,9 @@ export default function ScenesPage() {
             placeholder="Type just the change you want applied to this image — e.g. “make it night”, “move the dragon closer”, “add rain”. Leave blank to reroll the same prompt."
             style={field}
           />
-          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
             <a href={imageUrl(active)} download={`${active.name.replace(/[^a-z0-9]+/gi, '_')}.png`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Download</a>
+            <button onClick={fixLimbs} disabled={generating} title="Redraw with an anatomy correction (removes extra/duplicated limbs)" style={{ ...secondaryButton, cursor: generating ? 'default' : 'pointer' }}>⚠ Fix limbs</button>
             <div style={{ flex: 1 }} />
             <button onClick={regenerate} disabled={generating} style={{ ...primaryButton, opacity: generating ? 0.55 : 1, cursor: generating ? 'default' : 'pointer' }}>
               {generating ? 'Generating…' : (editText.trim() ? '↻ Apply edit' : '↻ Regenerate')}
