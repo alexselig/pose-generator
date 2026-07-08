@@ -341,7 +341,9 @@ export default function ScenesPage() {
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '92vw', padding: '0 64px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
               <span style={{ font: '600 16px var(--font-display)', color: '#fff' }}>{lbScene.name}</span>
-              <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(255,255,255,.55)' }}>{lbScene.aspectRatio}</span>
+              {scenes.length > 1 && (
+                <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(255,255,255,.55)' }}>{(lightboxIndex ?? 0) + 1} / {scenes.length}</span>
+              )}
             </div>
             {lbScene.status === 'generated' ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -350,8 +352,6 @@ export default function ScenesPage() {
               <div style={{ padding: '80px', color: 'rgba(255,255,255,.7)' }}>{lbScene.status}</div>
             )}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(255,255,255,.55)' }}>{(lightboxIndex ?? 0) + 1} / {scenes.length}</span>
-              <span style={{ font: '400 12px var(--font-mono)', color: 'rgba(255,255,255,.5)', maxWidth: '38vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lbScene.characterNames.join(' · ')}</span>
               <a href={imageUrl(lbScene)} download={`${lbScene.name.replace(/[^a-z0-9]+/gi, '_')}.png`} style={lbSecondary}>⬇ Download</a>
               <button onClick={() => { openScene(lbScene); closeLightbox(); }} style={{ ...primaryButton, cursor: 'pointer' }}>✎ Edit scene</button>
             </div>
