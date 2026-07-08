@@ -106,7 +106,11 @@ export function Sidebar() {
             cursor: 'pointer',
           }}
         >
-          <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>▦</span>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor" aria-hidden style={{ flex: 'none' }}>
+            <rect x="0" y="0" width="3" height="3" rx="0.6" /><rect x="5" y="0" width="3" height="3" rx="0.6" /><rect x="10" y="0" width="3" height="3" rx="0.6" />
+            <rect x="0" y="5" width="3" height="3" rx="0.6" /><rect x="5" y="5" width="3" height="3" rx="0.6" /><rect x="10" y="5" width="3" height="3" rx="0.6" />
+            <rect x="0" y="10" width="3" height="3" rx="0.6" /><rect x="5" y="10" width="3" height="3" rx="0.6" /><rect x="10" y="10" width="3" height="3" rx="0.6" />
+          </svg>
           Gallery
         </Link>
         <Link
