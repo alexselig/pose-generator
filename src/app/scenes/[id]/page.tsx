@@ -5,17 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Scene } from '@/lib/types';
 import { useToast } from '@/components/Toast';
+import { BloomLoader } from '@/components/BloomLoader';
 
 const CHECKER = 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 30px 30px';
-
-function Spinner() {
-  return (
-    <div
-      aria-label="Loading"
-      style={{ width: '42px', height: '42px', borderRadius: '50%', border: '3px solid var(--border-card)', borderTopColor: 'var(--accent)', animation: 'pf-spin .8s linear infinite' }}
-    />
-  );
-}
 
 const loaderOverlay: React.CSSProperties = {
   position: 'absolute',
@@ -132,7 +124,12 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  if (loading) return <div style={{ padding: '30px 34px', color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '90px 34px', color: 'var(--muted)' }}>
+      <BloomLoader size={40} />
+      <span style={{ font: '500 13px var(--font-body)' }}>Loading…</span>
+    </div>
+  );
   if (!scene) return null;
 
   return (
@@ -149,7 +146,7 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
             <img src={imageUrl(scene)} alt={scene.name} style={{ width: '100%', display: 'block', opacity: generating ? 0.35 : 1 }} />
             {generating && (
               <div style={loaderOverlay}>
-                <Spinner />
+                <BloomLoader size={52} />
                 <span style={loaderText}>Applying edit…</span>
               </div>
             )}
@@ -163,7 +160,7 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
               </>
             ) : (
               <>
-                <Spinner />
+                <BloomLoader size={64} />
                 <span style={loaderText}>Generating scene…</span>
               </>
             )}
