@@ -60,19 +60,11 @@ export default function ScenesPage() {
       });
       if (!createRes.ok) throw new Error((await createRes.json().catch(() => ({}))).error || 'Failed to create scene');
       const scene: Scene = await createRes.json();
-      const genRes = await fetch(`/api/scenes/${scene.id}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enhance }),
-      });
-      if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to generate scene');
-      const updated: Scene = await genRes.json();
-      setScenes(prev => [updated, ...prev.filter(s => s.id !== updated.id)]);
-      showToast('Scene generated');
-      router.push(`/scenes/${updated.id}`);
+      // Switch to the focused editor immediately; it runs the generation and shows
+      // an aspect-correct loader, so clicking Generate feels like an instant reaction.
+      router.push(`/scenes/${scene.id}?enhance=${enhance ? '1' : '0'}`);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Failed to generate scene');
-    } finally {
+      showToast(e instanceof Error ? e.message : 'Failed to create scene');
       setGenerating(false);
     }
   };
