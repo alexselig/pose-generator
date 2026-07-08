@@ -18,6 +18,7 @@ export default function ScenesPage() {
   const [generating, setGenerating] = useState(false);
   const [active, setActive] = useState<Scene | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/characters')
@@ -105,6 +106,7 @@ export default function ScenesPage() {
   const imageUrl = (scene: Scene) => `/api/scenes/${scene.id}/image?v=${encodeURIComponent(scene.updatedAt)}`;
 
   const sections = useMemo(() => groupCharacters(characters), [characters]);
+  const activeSection = sections.find(s => s.name === activeGroup) ?? sections[0] ?? null;
 
   const renderCard = (c: Character) => {
     const on = selected.includes(c.id);
@@ -147,19 +149,26 @@ export default function ScenesPage() {
             No characters yet. <Link href="/characters/new" style={{ color: 'var(--accent)' }}>Create one →</Link>
           </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-            {sections.map(section => (
-              <div key={section.name}>
-                {!(sections.length === 1 && section.isUngrouped) && (
-                  <div style={{ font: '700 10px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
-                    {section.isUngrouped ? 'Ungrouped' : section.name}
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '10px' }}>
-                  {section.characters.map(c => renderCard(c))}
-                </div>
+          <div style={{ marginTop: '4px' }}>
+            {sections.length > 1 && (
+              <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', marginBottom: '14px', borderBottom: '1px solid var(--border-card)' }}>
+                {sections.map(section => {
+                  const isActive = activeSection?.name === section.name;
+                  const selCount = section.characters.filter(c => selected.includes(c.id)).length;
+                  return (
+                    <button key={section.name} onClick={() => setActiveGroup(section.name)} style={{ ...tab, ...(isActive ? tabActive : {}) }}>
+                      {section.isUngrouped ? 'Ungrouped' : section.name}
+                      {selCount > 0 && <span style={tabBadge(isActive)}>{selCount}</span>}
+                    </button>
+                  );
+                })}
               </div>
-            ))}
+            )}
+            {activeSection && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '10px' }}>
+                {activeSection.characters.map(c => renderCard(c))}
+              </div>
+            )}
           </div>
         )}
 
@@ -316,6 +325,38 @@ const chipActive: React.CSSProperties = {
   color: 'var(--canvas)',
   border: '1px solid var(--accent)',
 };
+
+const tab: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  borderBottom: '2px solid transparent',
+  color: 'var(--muted)',
+  padding: '8px 12px',
+  font: '600 12.5px var(--font-body)',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  marginBottom: '-1px',
+};
+
+const tabActive: React.CSSProperties = {
+  color: 'var(--ink)',
+  borderBottom: '2px solid var(--accent)',
+};
+
+const tabBadge = (active: boolean): React.CSSProperties => ({
+  minWidth: '16px',
+  height: '16px',
+  padding: '0 4px',
+  borderRadius: '999px',
+  background: active ? 'var(--accent)' : 'var(--border-card)',
+  color: active ? 'var(--canvas)' : 'var(--ink-2)',
+  font: '700 10px var(--font-mono)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
 
 const primaryButton: React.CSSProperties = {
   background: 'var(--accent)',
