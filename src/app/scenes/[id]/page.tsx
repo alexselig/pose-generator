@@ -176,6 +176,7 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0 8px' }}>
             <span style={{ ...microLabel, marginBottom: 0 }}>PROMPT USED</span>
+            <div style={{ flex: 1 }} />
             <button onClick={copyPrompt} style={copyBtn}>⧉ Copy</button>
           </div>
           <div style={promptReadonly}>{scene.prompt}</div>
