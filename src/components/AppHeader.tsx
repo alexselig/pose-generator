@@ -12,6 +12,8 @@ export function AppHeader() {
   const { toggleSidebar } = useSidebar();
 
   const isCreate = pathname === '/characters/new';
+  const isScenes = pathname.startsWith('/scenes');
+  const isSceneNew = pathname === '/scenes/new';
   const charMatch = pathname.match(/^\/(characters|generate|export|animate)\/([^/]+)$/);
   const charId = charMatch?.[2];
   const isCharView = !!charMatch && !isCreate;
@@ -32,7 +34,9 @@ export function AppHeader() {
   }, [fetchId]);
 
   let title = 'Character Gallery';
-  if (isCreate) title = 'New Character';
+  if (isSceneNew) title = 'New Scene';
+  else if (isScenes) title = 'Scenes';
+  else if (isCreate) title = 'New Character';
   else if (isCharView) title = character?.name || 'Character';
 
   return (
@@ -83,23 +87,25 @@ export function AppHeader() {
 
       <div className="flex-1" />
 
-      <Link
-        href="/characters/new"
-        className="pf-newchar flex items-center gap-[7px] no-underline"
-        style={{
-          background: 'transparent',
-          color: 'var(--accent)',
-          border: '1px solid var(--accent)',
-          borderRadius: 'var(--radius-pill)',
-          padding: '11px 22px',
-          font: "600 12px var(--font-body)",
-          letterSpacing: '.1em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-        }}
-      >
-        <span style={{ fontSize: '15px', lineHeight: 1 }}>＋</span> New Character
-      </Link>
+      {!(isCreate || isSceneNew) && (
+        <Link
+          href={isScenes ? '/scenes/new' : '/characters/new'}
+          className="pf-newchar flex items-center gap-[7px] no-underline"
+          style={{
+            background: 'transparent',
+            color: 'var(--accent)',
+            border: '1px solid var(--accent)',
+            borderRadius: 'var(--radius-pill)',
+            padding: '11px 22px',
+            font: "600 12px var(--font-body)",
+            letterSpacing: '.1em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: '15px', lineHeight: 1 }}>＋</span> {isScenes ? 'New Scene' : 'New Character'}
+        </Link>
+      )}
     </header>
   );
 }
