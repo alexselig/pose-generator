@@ -439,3 +439,42 @@ Rewrite it into a single flowing, present-tense description (3-5 sentences) that
   const text = result.response.text().trim();
   return text || context;
 }
+
+// Edit an existing scene image in place (img2img): the current render is fed back
+// to the model with a single change instruction, so the user can type just the
+// delta ("make it night", "move the dragon closer") instead of rewriting the whole
+// prompt. Everything not mentioned is kept identical, including the characters.
+export async function editSceneImage(
+  currentImageBase64: string,
+  instruction: string,
+  options: { aspectRatio?: string } = {}
+): Promise<string> {
+  const client = getClient();
+  const aspect = options.aspectRatio || '16:9';
+  const model = client.getGenerativeModel({
+    model: 'gemini-2.5-flash-image',
+    generationConfig: {
+      // @ts-expect-error - responseModalities / imageConfig not in the SDK types yet
+      responseModalities: ['image', 'text'],
+      imageConfig: { aspectRatio: aspect },
+    },
+  });
+
+  const prompt = `The image above is an existing illustrated 2D-game scene. Apply ONLY this change: ${instruction}.
+
+Keep EVERYTHING else identical — the same characters with the exact same faces, hair, outfits, colors, and proportions; the same overall composition, staging, and camera framing; and the same art style, palette, and rendering. Do not add or remove characters, do not restyle or redraw the characters, and do not add any text, captions, or watermarks. Output the full edited scene image.`;
+
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+    { text: 'Current scene to edit:' },
+    { inlineData: { mimeType: detectImageMimeType(currentImageBase64), data: currentImageBase64 } },
+    { text: prompt },
+  ];
+
+  const result = await model.generateContent(parts);
+  const candidates = result.response.candidates;
+  if (!candidates || candidates.length === 0) throw new Error('No response from Gemini');
+  for (const part of candidates[0].content.parts) {
+    if ('inlineData' in part && part.inlineData) return part.inlineData.data;
+  }
+  throw new Error('No image generated in response');
+}

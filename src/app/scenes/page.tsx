@@ -17,7 +17,7 @@ export default function ScenesPage() {
   const [enhance, setEnhance] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [active, setActive] = useState<Scene | null>(null);
-  const [prompt, setPrompt] = useState('');
+  const [editText, setEditText] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function ScenesPage() {
       if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to generate scene');
       const updated: Scene = await genRes.json();
       setActive(updated);
-      setPrompt(updated.prompt || '');
+      setEditText('');
       setScenes(prev => [updated, ...prev.filter(s => s.id !== updated.id)]);
       showToast('Scene generated');
     } catch (e) {
@@ -67,23 +67,34 @@ export default function ScenesPage() {
 
   const regenerate = async () => {
     if (!active) return;
+    const delta = editText.trim();
     setGenerating(true);
     try {
       const genRes = await fetch(`/api/scenes/${active.id}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim() || undefined }),
+        body: JSON.stringify(delta ? { edit: delta } : { prompt: active.prompt || undefined }),
       });
       if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to regenerate');
       const updated: Scene = await genRes.json();
       setActive(updated);
-      setPrompt(updated.prompt || '');
+      setEditText('');
       setScenes(prev => prev.map(s => (s.id === updated.id ? updated : s)));
-      showToast('Scene regenerated');
+      showToast(delta ? 'Edit applied' : 'Scene regenerated');
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Failed to regenerate scene');
+      showToast(e instanceof Error ? e.message : 'Failed to apply edit');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const copyPrompt = async () => {
+    if (!active?.prompt) return;
+    try {
+      await navigator.clipboard.writeText(active.prompt);
+      showToast('Prompt copied');
+    } catch {
+      showToast('Copy failed');
     }
   };
 
@@ -99,7 +110,7 @@ export default function ScenesPage() {
 
   const openScene = (scene: Scene) => {
     setActive(scene);
-    setPrompt(scene.prompt || '');
+    setEditText('');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -232,19 +243,29 @@ export default function ScenesPage() {
             )}
           </div>
 
-          <div style={{ ...microLabel, marginTop: '16px' }}>SCENE PROMPT · editable</div>
+          {active.prompt && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0 8px' }}>
+                <span style={{ ...microLabel, marginBottom: 0 }}>PROMPT USED</span>
+                <button onClick={copyPrompt} style={copyBtn}>⧉ Copy</button>
+              </div>
+              <div style={promptReadonly}>{active.prompt}</div>
+            </>
+          )}
+
+          <div style={{ ...microLabel, marginTop: '16px' }}>DESCRIBE AN EDIT · OPTIONAL</div>
           <textarea
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            rows={4}
-            placeholder="The effective prompt used for this scene. Edit it and Regenerate to refine — or clear it to re-enhance from the original context."
+            value={editText}
+            onChange={e => setEditText(e.target.value)}
+            rows={2}
+            placeholder="Type just the change you want applied to this image — e.g. “make it night”, “move the dragon closer”, “add rain”. Leave blank to reroll the same prompt."
             style={field}
           />
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center' }}>
             <a href={imageUrl(active)} download={`${active.name.replace(/[^a-z0-9]+/gi, '_')}.png`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Download</a>
             <div style={{ flex: 1 }} />
             <button onClick={regenerate} disabled={generating} style={{ ...primaryButton, opacity: generating ? 0.55 : 1, cursor: generating ? 'default' : 'pointer' }}>
-              {generating ? 'Generating…' : '↻ Regenerate'}
+              {generating ? 'Generating…' : (editText.trim() ? '↻ Apply edit' : '↻ Regenerate')}
             </button>
           </div>
         </div>
@@ -377,4 +398,26 @@ const secondaryButton: React.CSSProperties = {
   cursor: 'pointer',
   display: 'inline-flex',
   alignItems: 'center',
+};
+
+const promptReadonly: React.CSSProperties = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border-field)',
+  borderRadius: 'var(--radius-input)',
+  color: 'var(--ink-2)',
+  padding: '10px 12px',
+  font: '12.5px/1.55 var(--font-body)',
+  whiteSpace: 'pre-wrap',
+  maxHeight: '150px',
+  overflowY: 'auto',
+};
+
+const copyBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid var(--border-field)',
+  borderRadius: '999px',
+  color: 'var(--ink-2)',
+  padding: '3px 10px',
+  font: '600 11px var(--font-body)',
+  cursor: 'pointer',
 };

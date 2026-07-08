@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCharacter, getPoseImage } from '@/lib/storage';
-import { getScene, saveScene, saveSceneImage } from '@/lib/scenes';
-import { generateSceneImage, enhanceScenePrompt } from '@/lib/gemini';
+import { getScene, saveScene, saveSceneImage, readSceneImage } from '@/lib/scenes';
+import { generateSceneImage, enhanceScenePrompt, editSceneImage } from '@/lib/gemini';
 import { Character } from '@/lib/types';
 
 // sharp-free, but a full multi-image model round-trip; keep off the edge runtime.
@@ -22,6 +22,8 @@ export async function POST(
     // Auto-enhance the user's short context into a rich prompt unless disabled or
     // an explicit (already-edited) prompt was supplied.
     const enhance = body?.enhance !== false;
+    const editInstruction =
+      typeof body?.edit === 'string' && body.edit.trim() ? body.edit.trim() : undefined;
 
     const scene = getScene(id);
     if (!scene) {
@@ -39,33 +41,49 @@ export async function POST(
     scene.updatedAt = new Date().toISOString();
     saveScene(scene);
 
-    // Resolve the effective scene prompt: an explicit edit wins; otherwise expand
-    // the context with the text model (best-effort — fall back to the raw context).
-    let effectivePrompt = userPrompt;
-    if (!effectivePrompt && enhance) {
-      try {
-        effectivePrompt = await enhanceScenePrompt(characters, scene.context, {
-          aspectRatio: scene.aspectRatio,
-          styleNote: scene.styleNote,
-        });
-      } catch (e) {
-        console.error('Scene prompt enhancement failed:', e);
+    let base64: string;
+    if (editInstruction) {
+      // Delta edit: transform the current render in place, keeping composition,
+      // characters, and style — only what the instruction asks changes.
+      const current = readSceneImage(scene.id);
+      if (!current) {
+        scene.status = 'failed';
+        scene.updatedAt = new Date().toISOString();
+        saveScene(scene);
+        return NextResponse.json({ error: 'No image to edit yet — generate the scene first.' }, { status: 400 });
       }
+      base64 = await editSceneImage(current.toString('base64'), editInstruction, {
+        aspectRatio: scene.aspectRatio,
+      });
+    } else {
+      // Resolve the effective scene prompt: an explicit edit wins; otherwise expand
+      // the context with the text model (best-effort — fall back to the raw context).
+      let effectivePrompt = userPrompt;
+      if (!effectivePrompt && enhance) {
+        try {
+          effectivePrompt = await enhanceScenePrompt(characters, scene.context, {
+            aspectRatio: scene.aspectRatio,
+            styleNote: scene.styleNote,
+          });
+        } catch (e) {
+          console.error('Scene prompt enhancement failed:', e);
+        }
+      }
+      scene.prompt = effectivePrompt || undefined;
+      saveScene(scene);
+
+      // Canonical reference per character: the generated reference pose, else the
+      // first uploaded reference image, else undefined (rely on the description).
+      const references = characters.map(
+        c => getPoseImage(c.id, 'reference_0') || (c.referenceImages.length > 0 ? c.referenceImages[0] : undefined)
+      );
+
+      base64 = await generateSceneImage(characters, references, scene.context, {
+        aspectRatio: scene.aspectRatio,
+        styleNote: scene.styleNote,
+        prompt: effectivePrompt,
+      });
     }
-    scene.prompt = effectivePrompt || undefined;
-    saveScene(scene);
-
-    // Canonical reference per character: the generated reference pose, else the
-    // first uploaded reference image, else undefined (rely on the description).
-    const references = characters.map(
-      c => getPoseImage(c.id, 'reference_0') || (c.referenceImages.length > 0 ? c.referenceImages[0] : undefined)
-    );
-
-    const base64 = await generateSceneImage(characters, references, scene.context, {
-      aspectRatio: scene.aspectRatio,
-      styleNote: scene.styleNote,
-      prompt: effectivePrompt,
-    });
 
     const imagePath = saveSceneImage(scene.id, Buffer.from(base64, 'base64'));
     scene.status = 'generated';
