@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Character, Scene, SCENE_ASPECT_RATIOS } from '@/lib/types';
+import { groupCharacters } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
 
 export default function ScenesPage() {
@@ -13,6 +14,7 @@ export default function ScenesPage() {
   const [context, setContext] = useState('');
   const [styleNote, setStyleNote] = useState('');
   const [aspect, setAspect] = useState<string>('16:9');
+  const [enhance, setEnhance] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [active, setActive] = useState<Scene | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -47,12 +49,12 @@ export default function ScenesPage() {
       const genRes = await fetch(`/api/scenes/${scene.id}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ enhance }),
       });
       if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to generate scene');
       const updated: Scene = await genRes.json();
       setActive(updated);
-      setPrompt('');
+      setPrompt(updated.prompt || '');
       setScenes(prev => [updated, ...prev.filter(s => s.id !== updated.id)]);
       showToast('Scene generated');
     } catch (e) {
@@ -74,6 +76,7 @@ export default function ScenesPage() {
       if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to regenerate');
       const updated: Scene = await genRes.json();
       setActive(updated);
+      setPrompt(updated.prompt || '');
       setScenes(prev => prev.map(s => (s.id === updated.id ? updated : s)));
       showToast('Scene regenerated');
     } catch (e) {
@@ -95,11 +98,36 @@ export default function ScenesPage() {
 
   const openScene = (scene: Scene) => {
     setActive(scene);
-    setPrompt('');
+    setPrompt(scene.prompt || '');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const imageUrl = (scene: Scene) => `/api/scenes/${scene.id}/image?v=${encodeURIComponent(scene.updatedAt)}`;
+
+  const sections = useMemo(() => groupCharacters(characters), [characters]);
+
+  const renderCard = (c: Character) => {
+    const on = selected.includes(c.id);
+    return (
+      <button
+        key={c.id}
+        onClick={() => toggle(c.id)}
+        title={c.name}
+        style={{
+          position: 'relative', padding: '8px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
+          background: on ? 'var(--accent)' : 'var(--surface)',
+          border: `1px solid ${on ? 'var(--accent)' : 'var(--border-card)'}`,
+        }}
+      >
+        <div style={{ width: '100%', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', background: 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 18px 18px', marginBottom: '6px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/characters/${c.id}/reference`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+        </div>
+        <div style={{ font: '600 12px var(--font-body)', color: on ? 'var(--canvas)' : 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+        {on && <div style={{ position: 'absolute', top: '6px', right: '6px', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--canvas)', color: 'var(--accent)', font: '700 12px var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>}
+      </button>
+    );
+  };
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '30px 34px 60px' }}>
@@ -119,29 +147,19 @@ export default function ScenesPage() {
             No characters yet. <Link href="/characters/new" style={{ color: 'var(--accent)' }}>Create one →</Link>
           </p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '10px', marginTop: '4px' }}>
-            {characters.map(c => {
-              const on = selected.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => toggle(c.id)}
-                  title={c.name}
-                  style={{
-                    position: 'relative', padding: '8px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
-                    background: on ? 'var(--accent)' : 'var(--surface)',
-                    border: `1px solid ${on ? 'var(--accent)' : 'var(--border-card)'}`,
-                  }}
-                >
-                  <div style={{ width: '100%', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', background: 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 18px 18px', marginBottom: '6px' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/characters/${c.id}/reference`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
+            {sections.map(section => (
+              <div key={section.name}>
+                {!(sections.length === 1 && section.isUngrouped) && (
+                  <div style={{ font: '700 10px var(--font-body)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+                    {section.isUngrouped ? 'Ungrouped' : section.name}
                   </div>
-                  <div style={{ font: '600 12px var(--font-body)', color: on ? 'var(--canvas)' : 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                  {on && <div style={{ position: 'absolute', top: '6px', right: '6px', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--canvas)', color: 'var(--accent)', font: '700 12px var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>}
-                </button>
-              );
-            })}
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '10px' }}>
+                  {section.characters.map(c => renderCard(c))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -174,11 +192,15 @@ export default function ScenesPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '20px', flexWrap: 'wrap' }}>
           <span style={{ font: '400 12px var(--font-mono)', color: 'var(--muted)' }}>
             {selected.length < 2 ? 'Select at least 2 characters' : `${selected.length} characters`}
           </span>
           <div style={{ flex: 1 }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', font: '500 12.5px var(--font-body)', color: 'var(--ink-2)' }} title="Expand your context into a richer prompt with the text model before generating">
+            <input type="checkbox" checked={enhance} onChange={e => setEnhance(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+            ✨ Enhance my prompt
+          </label>
           <button onClick={generate} disabled={!canGenerate} style={{ ...primaryButton, opacity: canGenerate ? 1 : 0.55, cursor: canGenerate ? 'pointer' : 'default' }}>
             {generating ? 'Generating…' : '✨ Generate scene'}
           </button>
@@ -201,12 +223,12 @@ export default function ScenesPage() {
             )}
           </div>
 
-          <div style={{ ...microLabel, marginTop: '16px' }}>TWEAK · OPTIONAL</div>
+          <div style={{ ...microLabel, marginTop: '16px' }}>SCENE PROMPT · editable</div>
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            rows={2}
-            placeholder="Adjust the scene — e.g. “move the fire to the background, make it night, tighter framing”. Leave blank to reroll the same context."
+            rows={4}
+            placeholder="The effective prompt used for this scene. Edit it and Regenerate to refine — or clear it to re-enhance from the original context."
             style={field}
           />
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center' }}>

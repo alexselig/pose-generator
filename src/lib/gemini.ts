@@ -386,8 +386,9 @@ COMPOSITION:
   const model = client.getGenerativeModel({
     model: 'gemini-2.5-flash-image',
     generationConfig: {
-      // @ts-expect-error - responseModalities not in types yet
+      // @ts-expect-error - responseModalities / imageConfig not in the SDK types yet
       responseModalities: ['image', 'text'],
+      imageConfig: { aspectRatio: aspect },
     },
   });
 
@@ -408,4 +409,33 @@ COMPOSITION:
     if ('inlineData' in part && part.inlineData) return part.inlineData.data;
   }
   throw new Error('No image generated in response');
+}
+
+// Expand a short user scene idea into ONE vivid, directive image prompt using the
+// text model. Character identities + shared-style locks stay in the image prompt
+// template (generateSceneImage); this only enriches the SCENE description so it
+// lands: setting, lighting, mood, per-character action/interaction, staging, and
+// framing. Refers to characters only by name so it never redesigns them.
+export async function enhanceScenePrompt(
+  characters: Character[],
+  context: string,
+  options: { aspectRatio?: string; styleNote?: string } = {}
+): Promise<string> {
+  const client = getClient();
+  const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const cast = characters.map(c => `${c.name}${c.description ? ` — ${c.description}` : ''}`).join('; ');
+  const aspect = options.aspectRatio || '16:9';
+  const styleLine = options.styleNote?.trim() ? `\nArt style to honor: ${options.styleNote.trim()}.` : '';
+
+  const instruction = `You are an art director writing ONE vivid prompt for an AI image generator that will illustrate a single static scene for a 2D game.
+
+Cast (their exact looks are locked by reference images elsewhere — refer to them ONLY by name; do NOT redescribe or redesign their faces, hair, outfits, or colors): ${cast}.
+Target framing: ${aspect}.${styleLine}
+The user's scene idea: "${context}"
+
+Rewrite it into a single flowing, present-tense description (3-5 sentences) that makes the scene land: the setting and concrete environment details, time of day and lighting, mood/atmosphere, what each named character is doing and how they physically relate or interact, and the staging — foreground/midground/background depth and a camera framing suited to a ${aspect} image. Do not invent new named characters, do not add any on-image text or watermarks, and do not use lists or headings. Output ONLY the prompt text.`;
+
+  const result = await model.generateContent([{ text: instruction }]);
+  const text = result.response.text().trim();
+  return text || context;
 }

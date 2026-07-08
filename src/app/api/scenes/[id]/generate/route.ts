@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCharacter, getPoseImage } from '@/lib/storage';
 import { getScene, saveScene, saveSceneImage } from '@/lib/scenes';
-import { generateSceneImage } from '@/lib/gemini';
+import { generateSceneImage, enhanceScenePrompt } from '@/lib/gemini';
 import { Character } from '@/lib/types';
 
 // sharp-free, but a full multi-image model round-trip; keep off the edge runtime.
@@ -19,6 +19,9 @@ export async function POST(
     const body = await request.json().catch(() => ({} as Record<string, unknown>));
     const userPrompt =
       typeof body?.prompt === 'string' && body.prompt.trim() ? body.prompt.trim() : undefined;
+    // Auto-enhance the user's short context into a rich prompt unless disabled or
+    // an explicit (already-edited) prompt was supplied.
+    const enhance = body?.enhance !== false;
 
     const scene = getScene(id);
     if (!scene) {
@@ -33,8 +36,23 @@ export async function POST(
     }
 
     scene.status = 'generating';
-    if (userPrompt) scene.prompt = userPrompt;
     scene.updatedAt = new Date().toISOString();
+    saveScene(scene);
+
+    // Resolve the effective scene prompt: an explicit edit wins; otherwise expand
+    // the context with the text model (best-effort — fall back to the raw context).
+    let effectivePrompt = userPrompt;
+    if (!effectivePrompt && enhance) {
+      try {
+        effectivePrompt = await enhanceScenePrompt(characters, scene.context, {
+          aspectRatio: scene.aspectRatio,
+          styleNote: scene.styleNote,
+        });
+      } catch (e) {
+        console.error('Scene prompt enhancement failed:', e);
+      }
+    }
+    scene.prompt = effectivePrompt || undefined;
     saveScene(scene);
 
     // Canonical reference per character: the generated reference pose, else the
@@ -46,7 +64,7 @@ export async function POST(
     const base64 = await generateSceneImage(characters, references, scene.context, {
       aspectRatio: scene.aspectRatio,
       styleNote: scene.styleNote,
-      prompt: userPrompt || scene.prompt,
+      prompt: effectivePrompt,
     });
 
     const imagePath = saveSceneImage(scene.id, Buffer.from(base64, 'base64'));

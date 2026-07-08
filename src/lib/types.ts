@@ -307,4 +307,4 @@ export interface Scene {
   updatedAt: string;
 }
 
-export const SCENE_ASPECT_RATIOS = ['16:9', '3:2', '1:1', '9:16'] as const;
+export const SCENE_ASPECT_RATIOS = ['16:9', '4:3', '1:1', '3:4', '9:16'] as const;
