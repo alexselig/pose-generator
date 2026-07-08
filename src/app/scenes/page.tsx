@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Character, Scene, SCENE_ASPECT_RATIOS } from '@/lib/types';
 import { groupCharacters } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
 
 export default function ScenesPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
@@ -16,8 +18,6 @@ export default function ScenesPage() {
   const [aspect, setAspect] = useState<string>('16:9');
   const [enhance, setEnhance] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [active, setActive] = useState<Scene | null>(null);
-  const [editText, setEditText] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -67,52 +67,13 @@ export default function ScenesPage() {
       });
       if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to generate scene');
       const updated: Scene = await genRes.json();
-      setActive(updated);
-      setEditText('');
       setScenes(prev => [updated, ...prev.filter(s => s.id !== updated.id)]);
       showToast('Scene generated');
+      router.push(`/scenes/${updated.id}`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to generate scene');
     } finally {
       setGenerating(false);
-    }
-  };
-
-  const runEdit = async (delta: string) => {
-    if (!active) return;
-    setGenerating(true);
-    try {
-      const genRes = await fetch(`/api/scenes/${active.id}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(delta ? { edit: delta } : { prompt: active.prompt || undefined }),
-      });
-      if (!genRes.ok) throw new Error((await genRes.json().catch(() => ({}))).error || 'Failed to regenerate');
-      const updated: Scene = await genRes.json();
-      setActive(updated);
-      setEditText('');
-      setScenes(prev => prev.map(s => (s.id === updated.id ? updated : s)));
-      showToast(delta ? 'Edit applied' : 'Scene regenerated');
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Failed to apply edit');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const regenerate = () => runEdit(editText.trim());
-
-  const fixLimbs = () => runEdit(
-    'Fix the character anatomy: each character must have exactly two arms, two hands, and two legs — remove any extra, duplicated, merged, or floating limbs. Keep every character\u2019s identity, the composition, and the art style the same.'
-  );
-
-  const copyPrompt = async () => {
-    if (!active?.prompt) return;
-    try {
-      await navigator.clipboard.writeText(active.prompt);
-      showToast('Prompt copied');
-    } catch {
-      showToast('Copy failed');
     }
   };
 
@@ -121,15 +82,8 @@ export default function ScenesPage() {
     const res = await fetch(`/api/scenes/${id}`, { method: 'DELETE' });
     if (res.ok) {
       setScenes(prev => prev.filter(s => s.id !== id));
-      if (active?.id === id) setActive(null);
       showToast('Scene deleted');
     }
-  };
-
-  const openScene = (scene: Scene) => {
-    setActive(scene);
-    setEditText('');
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const imageUrl = (scene: Scene) => `/api/scenes/${scene.id}/image?v=${encodeURIComponent(scene.updatedAt)}`;
@@ -254,51 +208,6 @@ export default function ScenesPage() {
         </div>
       </div>
 
-      {/* Active scene review */}
-      {active && (
-        <div style={{ ...card, marginTop: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '12px' }}>
-            <h2 style={{ font: '600 18px var(--font-display)', margin: 0, color: 'var(--ink)' }}>{active.name}</h2>
-            <span style={{ font: '400 12px var(--font-mono)', color: 'var(--muted)' }}>{active.aspectRatio}</span>
-          </div>
-          <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)', background: 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 30px 30px' }}>
-            {active.status === 'generated' ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl(active)} alt={active.name} style={{ width: '100%', display: 'block', opacity: generating ? 0.4 : 1 }} />
-            ) : (
-              <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted)' }}>{active.status === 'failed' ? 'Generation failed — try again.' : 'Generating…'}</div>
-            )}
-          </div>
-
-          {active.prompt && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0 8px' }}>
-                <span style={{ ...microLabel, marginBottom: 0 }}>PROMPT USED</span>
-                <button onClick={copyPrompt} style={copyBtn}>⧉ Copy</button>
-              </div>
-              <div style={promptReadonly}>{active.prompt}</div>
-            </>
-          )}
-
-          <div style={{ ...microLabel, marginTop: '16px' }}>DESCRIBE AN EDIT · OPTIONAL</div>
-          <textarea
-            value={editText}
-            onChange={e => setEditText(e.target.value)}
-            rows={2}
-            placeholder="Type just the change you want applied to this image — e.g. “make it night”, “move the dragon closer”, “add rain”. Leave blank to reroll the same prompt."
-            style={field}
-          />
-          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <a href={imageUrl(active)} download={`${active.name.replace(/[^a-z0-9]+/gi, '_')}.png`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Download</a>
-            <button onClick={fixLimbs} disabled={generating} title="Redraw with an anatomy correction (removes extra/duplicated limbs)" style={{ ...secondaryButton, cursor: generating ? 'default' : 'pointer' }}>⚠ Fix limbs</button>
-            <div style={{ flex: 1 }} />
-            <button onClick={regenerate} disabled={generating} style={{ ...primaryButton, opacity: generating ? 0.55 : 1, cursor: generating ? 'default' : 'pointer' }}>
-              {generating ? 'Generating…' : (editText.trim() ? '↻ Apply edit' : '↻ Regenerate')}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Gallery */}
       {scenes.length > 0 && (
         <>
@@ -353,7 +262,7 @@ export default function ScenesPage() {
             )}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <a href={imageUrl(lbScene)} download={`${lbScene.name.replace(/[^a-z0-9]+/gi, '_')}.png`} style={lbSecondary}>⬇ Download</a>
-              <button onClick={() => { openScene(lbScene); closeLightbox(); }} style={{ ...primaryButton, cursor: 'pointer' }}>✎ Edit scene</button>
+              <button onClick={() => router.push(`/scenes/${lbScene.id}`)} style={{ ...primaryButton, cursor: 'pointer' }}>✎ Edit scene</button>
             </div>
           </div>
           {scenes.length > 1 && (
@@ -448,40 +357,6 @@ const primaryButton: React.CSSProperties = {
   borderRadius: 'var(--radius-btn)',
   padding: '10px 18px',
   font: '600 13px var(--font-body)',
-};
-
-const secondaryButton: React.CSSProperties = {
-  background: 'transparent',
-  color: 'var(--ink-2)',
-  border: '1px solid var(--border-field)',
-  borderRadius: 'var(--radius-btn)',
-  padding: '9px 16px',
-  font: '600 13px var(--font-body)',
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-};
-
-const promptReadonly: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border-field)',
-  borderRadius: 'var(--radius-input)',
-  color: 'var(--ink-2)',
-  padding: '10px 12px',
-  font: '12.5px/1.55 var(--font-body)',
-  whiteSpace: 'pre-wrap',
-  maxHeight: '150px',
-  overflowY: 'auto',
-};
-
-const copyBtn: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--border-field)',
-  borderRadius: '999px',
-  color: 'var(--ink-2)',
-  padding: '3px 10px',
-  font: '600 11px var(--font-body)',
-  cursor: 'pointer',
 };
 
 const lbSecondary: React.CSSProperties = {
