@@ -25,6 +25,7 @@ export function Sidebar() {
   }, [pathname, closeSidebar]);
 
   const isGallery = pathname === '/' || pathname === '/characters';
+  const isScenes = pathname.startsWith('/scenes');
   const activeCharId = pathname.match(/\/(characters|generate|export|animate)\/([^/]+)/)?.[2];
   const libraryCharacters = characters.filter(char => !char.archived);
   const sections = groupCharacters(libraryCharacters);
@@ -92,23 +93,37 @@ export function Sidebar() {
         PoseForge
       </Link>
 
-      {/* Gallery row */}
-      <Link
-        href="/characters"
-        className="flex items-center gap-[9px] no-underline flex-none"
-        style={{
-          padding: '0 0 15px',
-          borderBottom: '1px solid var(--border)',
-          color: isGallery ? 'var(--accent)' : 'var(--text-bright)',
-          font: "700 12px var(--font-body)",
-          letterSpacing: '.05em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-        }}
-      >
-        <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>▦</span>
-        Gallery
-      </Link>
+      {/* Top nav */}
+      <div className="flex flex-col flex-none" style={{ gap: '12px', padding: '0 0 15px', borderBottom: '1px solid var(--border)' }}>
+        <Link
+          href="/characters"
+          className="flex items-center gap-[9px] no-underline"
+          style={{
+            color: isGallery ? 'var(--accent)' : 'var(--text-bright)',
+            font: "700 12px var(--font-body)",
+            letterSpacing: '.05em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>▦</span>
+          Gallery
+        </Link>
+        <Link
+          href="/scenes"
+          className="flex items-center gap-[9px] no-underline"
+          style={{
+            color: isScenes ? 'var(--accent)' : 'var(--text-bright)',
+            font: "700 12px var(--font-body)",
+            letterSpacing: '.05em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>◑</span>
+          Scenes
+        </Link>
+      </div>
 
       {/* Grouped character list */}
       {sections.map(section => {

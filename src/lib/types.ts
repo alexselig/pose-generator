@@ -287,3 +287,24 @@ export function getAnimationPrompt(action: string): string {
   const key = action.toLowerCase().trim();
   return (ANIMATION_MOTIONS[key] || DEFAULT_MOTION).motion;
 }
+
+// ── Scenes ───────────────────────────────────────────────────────────────────
+// A Scene is a single static illustration composed from two or more characters
+// posed together in a described context. Stored slim (image bytes on disk).
+export interface Scene {
+  id: string;
+  name: string;
+  characterIds: string[];
+  characterNames: string[];
+  context: string; // the user's scene description
+  prompt?: string; // last effective prompt (for regenerate/edit)
+  aspectRatio: string; // '16:9' | '1:1' | '3:2' | '9:16'
+  styleNote?: string;
+  status: 'pending' | 'generating' | 'generated' | 'failed';
+  approved?: boolean;
+  imagePath?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const SCENE_ASPECT_RATIOS = ['16:9', '3:2', '1:1', '9:16'] as const;

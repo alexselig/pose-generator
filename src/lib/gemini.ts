@@ -327,3 +327,85 @@ export async function generateMultiplePoses(
 
   return results;
 }
+
+// Generate a single cohesive scene image from several characters posed together
+// in a described context. Each character's canonical reference image (when
+// available) is provided as an input part and bound to that character by name in
+// the prompt, with a hard identity + style lock so the model reproduces each
+// character on-model instead of blending them. `references[i]` is the raw base64
+// reference for `characters[i]` (or undefined to rely on the text description).
+export async function generateSceneImage(
+  characters: Character[],
+  references: (string | undefined)[],
+  context: string,
+  options: { aspectRatio?: string; styleNote?: string; prompt?: string } = {}
+): Promise<string> {
+  const client = getClient();
+  const n = characters.length;
+  const aspect = options.aspectRatio || '16:9';
+  const sceneText = (options.prompt && options.prompt.trim()) ? options.prompt.trim() : context.trim();
+
+  const cast = characters
+    .map((c, i) => {
+      const traits = [
+        c.description,
+        c.costumeDetails && `outfit: ${c.costumeDetails}`,
+        c.accessories && `accessories: ${c.accessories}`,
+        c.colorPalette.length > 0 && `colors: ${c.colorPalette.join(', ')}`,
+        c.bodyProportions && `proportions: ${c.bodyProportions}`,
+      ].filter(Boolean).join('; ');
+      const refNote = references[i] ? ` (match reference image ${i + 1} exactly)` : '';
+      return `CHARACTER ${i + 1} — ${c.name}: ${traits}${refNote}.`;
+    })
+    .join('\n');
+
+  const sharedStyle = options.styleNote?.trim()
+    || characters.map(c => c.artStyle).find(Boolean)
+    || 'clean illustrated 2D game art';
+
+  const prompt = `Generate a SINGLE cohesive illustrated scene image, ${aspect} aspect ratio, containing EXACTLY ${n} distinct characters posed together.
+
+CAST (reproduce each character to match their OWN reference image and description):
+${cast}
+
+SCENE / CONTEXT: ${sceneText}
+
+IDENTITY LOCK (CRITICAL):
+- Each named character must match their own reference image — same face, hair, skin tone, outfit, colors, accessories, and body proportions.
+- Do NOT blend two characters into one, do NOT give a character another's outfit/hair/colors, and do NOT add extra background people. EXACTLY ${n} distinct characters, no duplicates.
+
+STYLE LOCK:
+- One shared art style for every character and the background: ${sharedStyle}.
+- Unified, coherent lighting, palette, and rendering across all characters and the environment so no one looks pasted in.
+
+COMPOSITION:
+- Stage the characters per the scene context, interacting naturally; keep full bodies visible where the scene allows, with believable relative scale.
+- A single unified background/environment that fits the context.
+- ${aspect} aspect ratio, well composed with a clear focal point. No text, captions, watermarks, UI, logos, or frame borders.`;
+
+  const model = client.getGenerativeModel({
+    model: 'gemini-2.5-flash-image',
+    generationConfig: {
+      // @ts-expect-error - responseModalities not in types yet
+      responseModalities: ['image', 'text'],
+    },
+  });
+
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+  characters.forEach((c, i) => {
+    const ref = references[i];
+    if (ref) {
+      parts.push({ text: `Reference image for CHARACTER ${i + 1} "${c.name}":` });
+      parts.push({ inlineData: { mimeType: detectImageMimeType(ref), data: ref } });
+    }
+  });
+  parts.push({ text: prompt });
+
+  const result = await model.generateContent(parts);
+  const candidates = result.response.candidates;
+  if (!candidates || candidates.length === 0) throw new Error('No response from Gemini');
+  for (const part of candidates[0].content.parts) {
+    if ('inlineData' in part && part.inlineData) return part.inlineData.data;
+  }
+  throw new Error('No image generated in response');
+}
