@@ -34,6 +34,7 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
   const [editText, setEditText] = useState('');
   const [generating, setGenerating] = useState(false);
   const [autoEnhance, setAutoEnhance] = useState(true);
+  const [animating, setAnimating] = useState(false);
   const startedRef = useRef(false);
 
   const runGenerate = async (enhance: boolean) => {
@@ -85,6 +86,29 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
+  // While a Veo render is in flight, poll the server (which downloads the mp4
+  // once ready) until the scene flips to generated or failed.
+  useEffect(() => {
+    if (scene?.videoStatus !== 'generating') return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/scenes/${id}/animate`);
+        if (!res.ok) return;
+        const updated: Scene & { videoError?: string } = await res.json();
+        if (cancelled) return;
+        setScene(updated);
+        if (updated.videoStatus === 'generated') showToast('Scene animated');
+        else if (updated.videoStatus === 'failed') showToast(updated.videoError || 'Animation failed');
+      } catch {
+        /* transient — keep polling */
+      }
+    };
+    const interval = setInterval(tick, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene?.videoStatus, id]);
+
   const imageUrl = (s: Scene) => `/api/scenes/${s.id}/image?v=${encodeURIComponent(s.updatedAt)}`;
 
   const runEdit = async (delta: string) => {
@@ -124,6 +148,28 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const videoUrl = (s: Scene) => `/api/scenes/${s.id}/video?v=${encodeURIComponent(s.videoUpdatedAt || s.updatedAt)}`;
+
+  const startAnimate = async () => {
+    if (!scene) return;
+    setAnimating(true);
+    try {
+      const res = await fetch(`/api/scenes/${scene.id}/animate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to start animation');
+      const updated: Scene = await res.json();
+      setScene(updated);
+      showToast('Animating scene…');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Failed to start animation');
+    } finally {
+      setAnimating(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '90px 34px', color: 'var(--muted)' }}>
       <BloomLoader size={40} />
@@ -131,6 +177,9 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
     </div>
   );
   if (!scene) return null;
+
+  // Veo only renders 16:9 / 9:16 — mirror that for the loader placeholder.
+  const veoAspectCss = scene.aspectRatio === '9:16' || scene.aspectRatio === '3:4' ? '9 / 16' : '16 / 9';
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '30px 34px 60px' }}>
@@ -199,6 +248,54 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
           {generating ? 'Generating…' : (editText.trim() ? '↻ Apply edit' : '↻ Regenerate')}
         </button>
       </div>
+
+      {scene.status === 'generated' && (
+        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border-card)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ ...microLabel, marginBottom: 0 }}>MOTION</span>
+            <div style={{ flex: 1 }} />
+            {scene.videoStatus === 'generated' && (
+              <button onClick={startAnimate} disabled={animating} style={copyBtn}>↻ Re-animate</button>
+            )}
+          </div>
+
+          {scene.videoStatus === 'generated' ? (
+            <>
+              <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-card)', background: '#000' }}>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video
+                  key={scene.videoUpdatedAt}
+                  src={videoUrl(scene)}
+                  style={{ width: '100%', display: 'block' }}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center' }}>
+                <a href={videoUrl(scene)} download={`${scene.name.replace(/[^a-z0-9]+/gi, '_')}.mp4`} style={{ ...secondaryButton, textDecoration: 'none' }}>⬇ Download video</a>
+              </div>
+            </>
+          ) : scene.videoStatus === 'generating' ? (
+            <div style={{ borderRadius: '14px', border: '1px solid var(--border-card)', background: CHECKER, aspectRatio: veoAspectCss, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+              <BloomLoader size={64} />
+              <span style={loaderText}>Animating scene… this takes a minute or two</span>
+            </div>
+          ) : (
+            <div>
+              <button onClick={startAnimate} disabled={animating} style={{ ...primaryButton, cursor: animating ? 'default' : 'pointer', opacity: animating ? 0.55 : 1 }}>
+                {animating ? 'Starting…' : '🎬 Animate scene'}
+              </button>
+              <p style={motionHint}>
+                Brings this still to life as a short ~8&nbsp;second video with Veo. Takes a minute or two and uses your Gemini API credits.
+                {scene.videoStatus === 'failed' && <span style={{ color: 'var(--accent)' }}> &nbsp;Last attempt failed — try again.</span>}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -209,6 +306,13 @@ const microLabel: React.CSSProperties = {
   textTransform: 'uppercase',
   color: 'var(--faint)',
   marginBottom: '8px',
+};
+
+const motionHint: React.CSSProperties = {
+  font: '400 12px/1.5 var(--font-body)',
+  color: 'var(--muted)',
+  margin: '12px 2px 0',
+  maxWidth: '520px',
 };
 
 const field: React.CSSProperties = {

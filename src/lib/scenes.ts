@@ -5,6 +5,7 @@ import { Scene } from './types';
 const DATA_DIR = process.env.DATA_DIR || './data';
 const SCENES_DIR = path.join(DATA_DIR, 'scenes');
 const SCENE_IMAGES_DIR = path.join(SCENES_DIR, 'images');
+const SCENE_VIDEOS_DIR = path.join(SCENES_DIR, 'videos');
 
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -38,6 +39,8 @@ export function deleteScene(id: string): boolean {
   fs.rmSync(filePath);
   const img = path.join(SCENE_IMAGES_DIR, `${id}.png`);
   if (fs.existsSync(img)) fs.rmSync(img);
+  const vid = path.join(SCENE_VIDEOS_DIR, `${id}.mp4`);
+  if (fs.existsSync(vid)) fs.rmSync(vid);
   return true;
 }
 
@@ -50,6 +53,19 @@ export function saveSceneImage(id: string, image: Buffer): string {
 
 export function readSceneImage(id: string): Buffer | null {
   const filePath = path.join(SCENE_IMAGES_DIR, `${id}.png`);
+  if (!fs.existsSync(filePath)) return null;
+  return fs.readFileSync(filePath);
+}
+
+export function saveSceneVideo(id: string, video: Buffer): string {
+  ensureDir(SCENE_VIDEOS_DIR);
+  const filePath = path.join(SCENE_VIDEOS_DIR, `${id}.mp4`);
+  fs.writeFileSync(filePath, video);
+  return filePath;
+}
+
+export function readSceneVideo(id: string): Buffer | null {
+  const filePath = path.join(SCENE_VIDEOS_DIR, `${id}.mp4`);
   if (!fs.existsSync(filePath)) return null;
   return fs.readFileSync(filePath);
 }

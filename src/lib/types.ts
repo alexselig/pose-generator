@@ -303,6 +303,11 @@ export interface Scene {
   status: 'pending' | 'generating' | 'generated' | 'failed';
   approved?: boolean;
   imagePath?: string;
+  // Veo image-to-video animation of this scene (optional, generated on demand).
+  videoStatus?: 'generating' | 'generated' | 'failed';
+  videoOp?: string; // Veo long-running operation name while rendering
+  videoPath?: string;
+  videoUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
