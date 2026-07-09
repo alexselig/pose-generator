@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Scene } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 import { BloomLoader } from '@/components/BloomLoader';
+import { PageLoader } from '@/components/PageLoader';
 
 const CHECKER = 'repeating-conic-gradient(#EFEAE0 0% 25%, #F9F6F1 0% 50%) 50% / 30px 30px';
 
@@ -171,10 +172,7 @@ export default function SceneEditorPage({ params }: { params: Promise<{ id: stri
   };
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '90px 34px', color: 'var(--muted)' }}>
-      <BloomLoader size={40} />
-      <span style={{ font: '500 13px var(--font-body)' }}>Loading…</span>
-    </div>
+    <PageLoader />
   );
   if (!scene) return null;
 

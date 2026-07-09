@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Character } from '@/lib/types';
 import { groupCharacters } from '@/lib/groups';
+import { PageLoader } from '@/components/PageLoader';
 
 // The list endpoint returns characters without inlined referenceImages base64;
 // hasReference tells us whether to render the portrait URL or the placeholder.
@@ -132,7 +133,7 @@ export default function CharacterGalleryPage() {
   );
 
   if (loading) {
-    return <div style={{ padding: '36px 42px', color: 'var(--muted)' }}>Loading…</div>;
+    return <PageLoader />;
   }
 
   return (

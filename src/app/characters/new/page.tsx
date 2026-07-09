@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GAME_PRESETS } from '@/lib/types';
 import { Lightbox, useLightbox } from '@/components/Lightbox';
+import { BloomLoader } from '@/components/BloomLoader';
 
 type WizStep = 1 | 2 | 3 | 4;
 type RefMode = 'none' | 'uploaded' | 'generated';
@@ -440,14 +441,14 @@ export default function NewCharacterWizard() {
               <div style={{ borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'radial-gradient(ellipse at 50% 60%, var(--accent-tint), transparent 70%), var(--bg-app)', minHeight: '300px' }}>
                 {generating ? (
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ width: '32px', height: '32px', border: '3px solid var(--accent-purple)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pf-spin .8s linear infinite', margin: '0 auto 12px' }} />
+                    <BloomLoader size={32} style={{ marginBottom: '12px' }} />
                     <div style={{ color: 'var(--text-dimmer)', fontSize: '12px' }}>Generating…</div>
                   </div>
                 ) : genDone && imageBase64 ? (
                   <>
                     {!imageReady && (
                       <div style={{ position: 'absolute', textAlign: 'center' }}>
-                        <div style={{ width: '32px', height: '32px', border: '3px solid var(--accent-purple)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pf-spin .8s linear infinite', margin: '0 auto 12px' }} />
+                        <BloomLoader size={32} style={{ marginBottom: '12px' }} />
                         <div style={{ color: 'var(--text-dimmer)', fontSize: '12px' }}>Loading image…</div>
                       </div>
                     )}
@@ -828,7 +829,7 @@ export default function NewCharacterWizard() {
                 {/* Image area with checkerboard */}
                 <div className="checkerboard" style={{ aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                   {generatingIdx === i ? (
-                    <div style={{ width: '28px', height: '28px', border: '3px solid var(--accent-purple)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pf-spin .8s linear infinite' }} />
+                    <BloomLoader size={28} />
                   ) : poseImages[pose.name] ? (
                     <img
                       src={`data:image/png;base64,${poseImages[pose.name]}`}

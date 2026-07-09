@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BloomLoader } from './BloomLoader';
 
 export interface LightboxImage {
   src: string;
@@ -150,6 +151,11 @@ export function Lightbox({ images, startIndex, onClose, onRegenerate, resolveAni
               <div ref={measureRef} style={{ position: 'relative', width: MEDIA_BOX, height: MEDIA_BOX, borderRadius: '12px', overflow: 'hidden', border: '1.5px dashed rgba(247,244,238,.28)', background: 'repeating-conic-gradient(rgba(247,244,238,.06) 0% 25%, rgba(247,244,238,.02) 0% 50%) 50% / 28px 28px' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.src} alt={img.alt} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: animGenerating ? 0.3 : 0.5 }} />
+                {animGenerating && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BloomLoader size={56} />
+                  </div>
+                )}
                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '12px' }}>
                   <span style={{ background: 'rgba(26,23,20,.66)', color: 'var(--canvas)', padding: '7px 13px', borderRadius: '999px', font: '600 12px var(--font-body)', textAlign: 'center' }}>
                     {animGenerating ? 'Generating…' : 'No animation yet — tweak the prompt & Generate'}

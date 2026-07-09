@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Character, PoseSet, GAME_PRESETS } from '@/lib/types';
 import { Lightbox, useLightbox } from '@/components/Lightbox';
+import { BloomLoader } from '@/components/BloomLoader';
+import { PageLoader } from '@/components/PageLoader';
 
 // All unique poses across all presets
 const ALL_SUGGESTIONS = GAME_PRESETS.flatMap(preset => preset.poses).filter(
@@ -217,7 +219,7 @@ export default function GeneratePage({
   const approvedCount = reviewPoses.filter(p => p.status === 'approved').length;
 
   if (loading || !character) {
-    return <div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>;
+    return <PageLoader />;
   }
 
   // ── Review phase ──
@@ -238,7 +240,7 @@ export default function GeneratePage({
             <div key={pose.id} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-hairline)', borderRadius: '14px', overflow: 'hidden' }}>
               <div className="checkerboard" style={{ aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                 {generatingIdx === i ? (
-                  <div style={{ width: '28px', height: '28px', border: '3px solid var(--accent-purple)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pf-spin .8s linear infinite' }} />
+                  <BloomLoader size={28} />
                 ) : poseImages[pose.name] ? (
                   <img
                     src={`data:image/png;base64,${poseImages[pose.name]}`}

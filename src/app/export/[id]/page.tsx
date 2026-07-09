@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Character, GodotManifest, Pose, PoseSet } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 import { Lightbox, useLightbox } from '@/components/Lightbox';
+import { PageLoader } from '@/components/PageLoader';
 
 export default function ExportPage({
   params,
@@ -182,7 +183,7 @@ export default function ExportPage({
   };
 
   if (loading) {
-    return <div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>;
+    return <PageLoader />;
   }
 
   if (!character || !poseSet) {

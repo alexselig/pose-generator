@@ -7,6 +7,7 @@ import { Character, PoseSet, AnimationClip, getAnimationPrompt } from '@/lib/typ
 import { listGroups } from '@/lib/groups';
 import { useToast } from '@/components/Toast';
 import { Lightbox, useLightbox, LightboxAnimation } from '@/components/Lightbox';
+import { PageLoader } from '@/components/PageLoader';
 
 export default function CharacterDetailPage({
   params,
@@ -286,7 +287,7 @@ export default function CharacterDetailPage({
     }
   };
 
-  if (!character) return <div style={{ padding: '34px 44px', color: 'var(--muted)' }}>Loading…</div>;
+  if (!character) return <PageLoader />;
 
   return (
     <div style={{ maxWidth: '1160px', margin: '0 auto', padding: '34px 44px 56px' }}>

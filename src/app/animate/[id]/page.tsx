@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Character, AnimationClip, getAnimationPrompt } from '@/lib/types';
 import { useToast } from '@/components/Toast';
+import { BloomLoader } from '@/components/BloomLoader';
+import { PageLoader } from '@/components/PageLoader';
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -15,7 +17,7 @@ function titleCase(slug: string): string {
 
 export default function AnimatePage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>}>
+    <Suspense fallback={<PageLoader />}>
       <AnimateInner params={params} />
     </Suspense>
   );
@@ -147,7 +149,7 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
   }, [actions, queryAction]);
 
   if (!character) {
-    return <div style={{ padding: '30px 34px', color: 'var(--text-dim)' }}>Loading…</div>;
+    return <PageLoader />;
   }
 
   return (
@@ -182,6 +184,11 @@ function AnimateInner({ params }: { params: Promise<{ id: string }> }) {
                     alt={`${titleCase(action)} pose`}
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: generating ? 0.32 : 0.72 }}
                   />
+                )}
+                {generating && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BloomLoader size={56} />
+                  </div>
                 )}
                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '14px' }}>
                   <span style={{ background: 'rgba(26,23,20,.62)', color: 'var(--canvas)', padding: '7px 13px', borderRadius: '999px', font: '600 12px var(--font-body)', textAlign: 'center' }}>
